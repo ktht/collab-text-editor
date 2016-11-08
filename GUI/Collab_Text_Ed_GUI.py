@@ -3,7 +3,7 @@ from tkSimpleDialog import askstring
 from tkFileDialog   import asksaveasfilename
 
 from tkMessageBox import askokcancel
- 
+
 
 class TextEdGUI(tk.Tk):
 
@@ -42,17 +42,24 @@ class TextEdGUI(tk.Tk):
 
         for F in (ConnectPage, EditorPage):
             frame = F(container, self)
-
             self.frames[F] = frame
 
             frame.grid(row=0, column=0, sticky="nsew")
 
+        page_name = EditorPage.__name__
+        self.frames[page_name] = frame
+
         self.show_frame(ConnectPage)
+
+
 
     def show_frame(self, cont):
 
         frame = self.frames[cont]
         frame.tkraise()
+
+    def get_page(self, page_name):
+        return self.frames[page_name]
 
 
 class ConnectPage(tk.Frame):
@@ -91,10 +98,12 @@ class EditorPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
 
-        text = tk.Text(self , height=25, width=80)
-        text.grid(column=0, row=0, sticky="nw")
-        scroll = tk.Scrollbar(self, command=text.yview)
-        text.configure(yscrollcommand=scroll.set)
+        #text = tk.Text(self , height=25, width=80)
+        self.text = tk.Text(self, height=25, width=80)
+
+        self.text.grid(column=0, row=0, sticky="nw")
+        scroll = tk.Scrollbar(self, command=self.text.yview)
+        self.text.configure(yscrollcommand=scroll.set)
         scroll.grid(column=1, row=0, sticky="ne", ipady=163)
 
         label = tk.Label(self, text="Editor Page", font=("Verdana", 12))
@@ -108,8 +117,6 @@ class EditorPage(tk.Frame):
         button2.grid(column=0,row=1, sticky="sw")
 
 
-        #text_widget.index(Tkinter.INSERT)
-
 def popupmsg(argument):
     popup = tk.Tk()
     popup.title("Pop up")
@@ -119,5 +126,8 @@ def popupmsg(argument):
     B1.pack()
     popup.mainloop()
 
+
 app = TextEdGUI()
+app.get_page("EditorPage").text.insert("1.0", "Hello, world!")
 app.mainloop()
+
