@@ -2,8 +2,8 @@
 import logging
 
 SERVER_PORT_DEFAULT      = 7777
-SERVER_INET_ADDR_DEFAULT = '127.0.0.1'      # localhost
-BUF_SZ                   = 2**10            # 1kB
+SERVER_INET_ADDR_DEFAULT = '127.0.0.1' # localhost
+BUF_SZ                   = 2**10       # 1kB
 
 def close_socket(sock):
   import socket

@@ -43,6 +43,22 @@ class server:
 
   def __handle(self, sock, addr):
     try:
+      # initial handshake
+      # recv from client
+      # client_id / request for new client_id
+      # client awaits for a confirmation == list of files (control code)
+      # client requests for a file
+      # server opens an existing file/creates a new file
+      # if file exists, send its contents to the client
+      # ???
+      # profit
+
+      # all client threads in server always sleeping
+      # if a client sent its changes to the server, then the receiving thread picks it up, puts the message
+      # into a queue, notifies all consumer threads via a conditional variable,
+      # upon which one of the consumer threads sends the message to all relevant clients
+      #
+      # 3 threads for a client on client side?
       pass
     except struct.error as err:
       logging.error('Encountered unpacking error: %s' % err)
@@ -67,7 +83,7 @@ class server:
     logging.debug('Start listening')
     while True:
       try:
-        client_sock, client_addr = self.socket.accept()
+        client_sock, client_addr = self.socket.accept() # blocks
         logging.debug('New client connected from %s:%d' % client_addr)
         thread = threading.Thread(target = self.__handle, args = (client_sock, client_addr))
         thread.setDaemon(True)
