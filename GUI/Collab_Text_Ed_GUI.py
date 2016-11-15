@@ -4,16 +4,17 @@ import Queue
 import threading
 import time
 import random
-
+#from backend import common
 from tkSimpleDialog import askstring
 from tkFileDialog   import asksaveasfilename
 
 from tkMessageBox import askokcancel
 
+queue_recv = Queue.Queue()
 
 class TextEdGUI(tk.Tk):
 
-    def __init__(self, queue, endCommand, *args, **kwargs):
+    def __init__(self, queue_send, endCommand, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         tk.Tk.title(self, "Collab Text Editor")
         tk.Tk.geometry(self, '580x410')
@@ -31,7 +32,7 @@ class TextEdGUI(tk.Tk):
 
         self.frames = {}
 
-        self.queue = queue
+        self.queue_send = queue_send
 
         for F in (ConnectPage, EditorPage):
             frame = F(container, self)
@@ -78,14 +79,16 @@ class TextEdGUI(tk.Tk):
         return self.frames[page_name]
 
     def processIncoming(self):
-        """Handle all messages currently in the queue, if any."""
-        while self.queue.qsize():
+        self.get_page("EditorPage").updateQueue()
+        #Handle all messages currently in the queue, if any.
+        while self.queue_send.qsize():
             try:
-                msg = self.queue.get(0)
-                self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
+                msg = self.queue_send.get(0)
+                #self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
                 #print msg
             except Queue.Empty:
                 pass
+
 
 
 class ConnectPage(tk.Frame):
@@ -117,18 +120,18 @@ class ConnectPage(tk.Frame):
         entry2.grid(row=2, column=1)
 
 
-
-
 class EditorPage(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
 
-        self.text = tk.Text(self, height=25, width=80)
-
+        self.text = CustomText(self, height=25, width=80)
         self.text.grid(column=0, row=0, sticky="nw")
+        self.text.grid(column=0, row=0, sticky="nw")
+        self.text.bind("<<TextModified>>", self.onModification)
+        self.text.bind('<Control-v>', lambda e: 'break')  # Disable paste option
+
         scroll = tk.Scrollbar(self, command=self.text.yview)
-        self.text.configure(yscrollcommand=scroll.set)
         scroll.grid(column=1, row=0, sticky="ne", ipady=163)
 
         label = tk.Label(self, text="Editor Page", font=("Verdana", 12))
@@ -141,6 +144,49 @@ class EditorPage(tk.Frame):
                             command=lambda: controller.show_frame(ConnectPage))
         button2.grid(column=0,row=1, sticky="sw")
 
+        self.text_muudatused = []
+        self.counter = 0
+
+
+    def onModification(self, event):
+        self.text_muudatused.append((self.text.index('insert').partition(".")[0]))
+        self.counter = 0
+
+    def updateQueue(self):
+        self.counter += 1
+
+        if self.counter >= 5 and len(self.text_muudatused) > 0:
+            self.text_muudatused = set(self.text_muudatused)
+            self.text_muudatused = [int(x) for x in self.text_muudatused]
+            self.text_muudatused.sort(reverse=True)
+
+            while len(self.text_muudatused) > 0:
+                try:
+                    rida = self.text_muudatused.pop()
+                    queue_recv.put(str(str(rida) + ":" + self.text.get(str(rida) + ".0", str(
+                        rida + 1) + ".0").rstrip()))
+                except UnicodeEncodeError:
+                    print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
+
+
+class CustomText(tk.Text):
+    def __init__(self, *args, **kwargs):
+        """A text widget that report on internal widget commands"""
+        tk.Text.__init__(self, *args, **kwargs)
+
+        # create a proxy for the underlying widget
+        self._orig = self._w + "_orig"
+        self.tk.call("rename", self._w, self._orig)
+        self.tk.createcommand(self._w, self._proxy)
+
+    def _proxy(self, command, *args):
+        cmd = (self._orig, command) + args
+        result = self.tk.call(cmd)
+
+        if command in ("insert", "delete", "replace"):
+            self.event_generate("<<TextModified>>")
+
+        return result
 
 def popupmsg(argument):
     popup = tk.Tk()
@@ -156,14 +202,16 @@ class ThreadedClient(threading.Thread):
 
     def __init__(self):
 
-        self.queue = Queue.Queue()
+        self.queue_send = Queue.Queue()
 
-        self.gui = TextEdGUI(self.queue, self.endApplication)
+        self.gui = TextEdGUI(self.queue_send, self.endApplication)
         self.gui.get_page("EditorPage").text.insert("1.0","Hello, world!")
 
         self.running = 1
         self.thread1 = threading.Thread(target=self.workerThread1)
+        self.thread2 = threading.Thread(target=self.workerThread2)
         self.thread1.start()
+        self.thread2.start()
 
         self.periodicCall() # Periodic call to check if the queue contains something
 
@@ -178,7 +226,19 @@ class ThreadedClient(threading.Thread):
         while self.running:
             time.sleep(random.random() * 1.5)
             msg = random.random()
-            self.queue.put(msg)
+            self.queue_send.put(msg)
+
+    def workerThread2(self):
+        """Handle all messages currently in the queue, if any."""
+        while self.running:
+            time.sleep(0.2)
+            while queue_recv.qsize():
+                try:
+                    msg = queue_recv.get(0)
+                    #self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
+                    print msg
+                except Queue.Empty:
+                    pass
 
     def endApplication(self):
         self.running = 0
@@ -186,4 +246,6 @@ class ThreadedClient(threading.Thread):
 if __name__ == '__main__':
     client = ThreadedClient()
     client.gui.mainloop()
+
+
 
