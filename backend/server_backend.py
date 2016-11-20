@@ -38,7 +38,7 @@ class server:
 
     logging.debug('Socket bound to %s:%d' % self.socket.getsockname())
 
-    self.db = db_manager.db_manager(os.path.join(common.TMP_DIR, 'db.json'))
+    self.db = db_manager.db_manager(os.path.join(self.directory, 'db.json'))
 
     return self
 
@@ -48,12 +48,12 @@ class server:
   def __handle(self, sock, addr):
     try:
       # initial handshake
+      init_args = None
       while True:
         # 1) receive either request for a new id,
         # or initialization of a new session
 
-        have_user, have_session = False, False
-        while not have_session:
+        while init_args is None:
           init_data = sock.recv(common.ctrl_struct.size)
           if not init_data:
             logging.error("Didn't receive any data from the client")
@@ -65,7 +65,6 @@ class server:
             # we have a new user; let's give him/her a new ID
             new_id = self.db.add_user()
             if new_id:
-              have_user = True
               logging.info("Created a new user w/ ID '%s'" % str(new_id))
 
               # let the user know its new ID
@@ -113,22 +112,25 @@ class server:
               else:
                 logging.debug("User #ID = '%d' starts editing file '%s' owned by user #ID = '%d'" %
                               (usr_id, fn_loc, fn_id))
-                # open the file handler
+                init_args = (sock, fn, False)
             else:
               logging.debug("User #ID = '%d' requested to open their own file '%s'" % (usr_id, fn_loc))
               if fn not in usr_files:
                 logging.debug("User #ID = '%d' requested to create a new file '%s'" % (usr_id, fn_loc))
-                # create a new file and send its contents to the user
+                init_args = (sock, fn, True)
+                # update db accordingly
               else:
                 logging.debug("User #ID = '%d' requested to open an existing file '%s'" % (usr_id, fn_loc))
                 # open an existing file
-              have_session = True
+                init_args = (sock, fn, False)
               break
           else:
             break
-        if not have_user or not have_session:
+        if init_args is None:
           logging.error("Unauthenticated user?!")
           break
+
+        # create a new thread and attach the file handler manager to it
 
         # recv from client
         # client_id / request for new client_id

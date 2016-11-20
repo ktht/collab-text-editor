@@ -5,6 +5,11 @@ SERVER_PORT_DEFAULT      = 7777            # default port
 SERVER_INET_ADDR_DEFAULT = '127.0.0.1'     # localhost
 BUF_SZ                   = 2**10           # 1kB
 MAX_PDU_SZ               = 10 * (2**10)**2 # 10MB
+TCP_CLIENT_TIMEOUT       = 10               # 10 seconds
+TCP_CLIENT_KEEPALIVE     = 1                # 1 second
+TCP_CLIENT_KEEPIDLE      = 1                # 1 second
+TCP_CLIENT_KEEPINTVL     = 1                # 1 second
+TCP_CLIENT_KEEPCNT       = 5                # 5 seconds
 
 ctrl_struct = struct.Struct('I Q') # unisnged int + unsigned long long (9 bytes in total)
 CTRL_OK            = int(0x01 << 0)
@@ -13,6 +18,8 @@ CTRL_REQ_INIT_SESS = int(0x01 << 2)
 CTRL_REQ_FILE      = int(0x01 << 3)
 
 TMP_DIR = os.path.join(os.path.expanduser('~'), '.tmp_collab')
+TMP_DIR_SERVER = os.path.join(TMP_DIR, 'server')
+TMP_DIR_CLIENT = os.path.join(TMP_DIR, 'client')
 
 DELIM         = '\0'
 DELIM_ID_FILE = ':'

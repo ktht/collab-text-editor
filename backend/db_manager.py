@@ -16,7 +16,8 @@ class db_manager:
 
     if not os.path.isfile(self.json_filename):
       logging.debug("DB file '%s' does not exists, creating one" % self.json_filename)
-      os.makedirs(os.path.dirname(self.json_filename))
+      if not os.path.exists(os.path.dirname(self.json_filename)):
+        os.makedirs(os.path.dirname(self.json_filename))
       try:
         with open(self.json_filename, 'w') as f:
           f.write(json.dumps([], indent = 2))
@@ -100,7 +101,7 @@ class db_manager:
                None in case of an error
       '''
     # generate a new user ID by incrementing the largest ID by 2
-    new_id = max(self.ids) + 1
+    new_id = max(self.ids) + 1 if len(self.ids) > 0 else 1
     new_entry = { 'ID' : new_id, 'files' : [] }
 
     self.ids.append(new_id)

@@ -27,7 +27,7 @@ if __name__ == '__main__':
                       help = 'INET address to bind the server socket to')
   parser.add_argument('-p', '--port', metavar = 'port', type = port_type, default = common.SERVER_PORT_DEFAULT,
                       help = 'Port number to bind the server socket to')
-  parser.add_argument('-d', '--directory', metavar = 'path', type = str, default = os.path.join(os.getcwd(), '.tmp'),
+  parser.add_argument('-d', '--directory', metavar = 'path', type = str, default = os.path.join(common.TMP_DIR_SERVER),
                       help = 'Directory where to keep the uploaded files')
   parser.add_argument('-v', '--verbose', action = 'store_true', default = False,
                       help='Enable debug output')
