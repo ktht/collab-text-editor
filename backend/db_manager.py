@@ -6,6 +6,8 @@ class db_manager:
   Manages user IDs and files associated with the users.
   The DB is stored in JSON format, which is updated whenever a new user or a new file is added.
   '''
+  #TODO: add some kind of flag to each file which specifies whether the file is made for public editing or not
+  #TODO: add more descriptive return codes than boolean's True/False
 
   def __init__(self, json_filename):
     logging.debug('Starting user manager')
@@ -14,6 +16,7 @@ class db_manager:
 
     if not os.path.isfile(self.json_filename):
       logging.debug("DB file '%s' does not exists, creating one" % self.json_filename)
+      os.makedirs(os.path.dirname(self.json_filename))
       try:
         with open(self.json_filename, 'w') as f:
           f.write(json.dumps([], indent = 2))
@@ -64,10 +67,14 @@ class db_manager:
       logging.debug("User '%s' does not exist in our DB" % str(user_id))
       return False
 
+    new_file_locator = common.DELIM_ID_FILE.join([user_id, new_file])
     entry_updated = False
     for entry in self.db:
       if entry['ID'] == user_id:
-        entry['files'].append(new_file)
+        if new_file_locator in entry['files']:
+          logging.debug("File '%s' already exists under the user, aborting" % new_file)
+          return False
+        entry['files'].append(new_file_locator)
         entry_updated = True
         logging.debug("Successfully associated the file '%s' with user '%s'" % \
                       (new_file, str(user_id)))
@@ -89,8 +96,8 @@ class db_manager:
   @common.synchronized("lock")
   def add_user(self):
     '''Add user to the JSON DB
-      :return: True, if the addition was successful,
-               False otherwise
+      :return: the new user_id, if the addition was successful,
+               None in case of an error
       '''
     # generate a new user ID by incrementing the largest ID by 2
     new_id = max(self.ids) + 1
@@ -107,4 +114,4 @@ class db_manager:
       self.ids.remove(new_id)
       self.db.remove(new_entry)
 
-    return new_id in self.ids
+    return new_id if new_id in self.ids else None
