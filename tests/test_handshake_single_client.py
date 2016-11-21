@@ -7,7 +7,13 @@ from client_backend import client
 
 def test_client(*args):
   with client(*args) as c:
-    c.req_id()
+    client_id = c.req_id()
+    logging.debug("Client ID is '%d'" % client_id)
+    client_files = c.req_session()
+    logging.debug("Client files: %s" % str(client_files))
+    c.req_file('%d:test.txt' % client_id)
+    logging.debug("Woo, success")
+    time.sleep(1)
 
 def test_server(*args):
   with server(*args) as s:

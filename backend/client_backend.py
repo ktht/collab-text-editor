@@ -8,6 +8,7 @@ class client:
     self.addr_port = (addr, port)
     self.dir       = dirname
     self.id        = client_id
+    self.files     = []
 
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     logging.debug('Created client socket, desciptor %d' % self.sock.fileno())
@@ -31,7 +32,14 @@ class client:
     common.close_socket(self.sock)
 
   def req_id(self):
+    '''Request a new client ID from the server
+    :return: int,  the new client ID if everything goes as expected
+             None, if there was an error in the communication/[un]packing/whatever
+
+     The function where it is called should check the returned value and act accordingly (preferably bail out).
+    '''
     try:
+      logging.debug('Requesting a new ID from the server')
       p_new_id = common.ctrl_struct.pack(*(common.CTRL_REQ_NEW_ID, 0))
       self.sock.sendall(p_new_id)
       p_new_id_resp = self.sock.recv(common.ctrl_struct.size)
@@ -39,7 +47,74 @@ class client:
       new_id_resp_code, new_id = unp_new_id_resp
       if new_id_resp_code != common.CTRL_OK:
         raise ValueError('Server error')
-      self.id = new_id
+      self.id = int(new_id)
+    except socket.timeout as err:
+      logging.debug('Socket timeout error: %s' % err)
+      return None
+    except socket.error as err:
+      logging.debug('Socket error: %s' % err)
+      return None
+    except struct.error as err:
+      logging.debug('Struct un/packing error: %s' % err)
+      return None
+    except KeyboardInterrupt as err:
+      logging.debug('Caught SIGINT: %s' % err)
+      return None
+    except ValueError as err:
+      logging.debug('Server error: %s' % err)
+    except BaseException as err:
+      logging.debug('Unknown error: %s' % err)
+      return None
+    return self.id
+
+  def req_session(self):
+    if self.id is None:
+      logging.error("Yo, what's up! You have no ID and should request one "
+                    "from the server before initiating the session (use: req_id())")
+      return None
+    try:
+      logging.debug('Requesting a new session from the server')
+      p_new_sess = common.ctrl_struct.pack(*(common.CTRL_REQ_INIT_SESS, self.id))
+      self.sock.sendall(p_new_sess)
+      p_new_sess_resp = self.sock.recv(common.BUF_SZ)#common.recv(self.sock)
+      if p_new_sess_resp == '':
+        logging.error('Got an empty message?')
+        return None
+      new_sess_code, new_sess_files = p_new_sess_resp.split(common.DELIM_LONG)
+      if int(new_sess_code) != common.CTRL_OK:
+        logging.error('Server was not happy')
+        return None
+      self.files = new_sess_files.split(common.DELIM)
+    except socket.timeout as err:
+      logging.debug('Socket timeout error: %s' % err)
+      return None
+    except socket.error as err:
+      logging.debug('Socket error: %s' % err)
+      return None
+    except struct.error as err:
+      logging.debug('Struct un/packing error: %s' % err)
+      return None
+    except KeyboardInterrupt:
+      logging.debug('Caught SIGINT')
+      return None
+    except BaseException as err:
+      logging.debug('Unknown error: %s' % err)
+      return None
+    return self.files
+
+  def req_file(self, fn):
+    if self.id is None:
+      logging.error("Yo, what's up! You have no ID and should request one "
+                    "from the server before initiating the session (use: req_id())")
+      return False
+    try:
+      logging.debug("Requesting to open file '%s' by server" % fn)
+      self.sock.sendall(fn)
+      p_new_file_resp = self.sock.recv(common.ctrl_struct.size)  # common.recv(self.sock)
+      new_file_code, _ = common.ctrl_struct.unpack(p_new_file_resp)
+      if int(new_file_code) != common.CTRL_OK:
+        logging.error('Server was not happy')
+        return False
     except socket.timeout as err:
       logging.debug('Socket timeout error: %s' % err)
       return False
@@ -49,53 +124,11 @@ class client:
     except struct.error as err:
       logging.debug('Struct un/packing error: %s' % err)
       return False
-    except KeyboardInterrupt as err:
-      logging.debug('Caught SIGINT: %s' % err)
+    except KeyboardInterrupt:
+      logging.debug('Caught SIGINT')
       return False
-    except ValueError as err:
-      logging.debug('Server error: %s' % err)
     except BaseException as err:
       logging.debug('Unknown error: %s' % err)
-      return False
-    return True
-
-  def req_session(self):
-    try:
-      pass
-    except socket.timeout:
-      logging.debug('Socket timeout error')
-      return False
-    except socket.error:
-      logging.debug('Socket error')
-      return False
-    except struct.error:
-      logging.debug('Struct un/packing error')
-      return False
-    except KeyboardInterrupt:
-      logging.debug('Caught SIGINT')
-      return False
-    except BaseException:
-      logging.debug('Unknown error')
-      return False
-    return True
-
-  def req_file(self):
-    try:
-      pass
-    except socket.timeout:
-      logging.debug('Socket timeout error')
-      return False
-    except socket.error:
-      logging.debug('Socket error')
-      return False
-    except struct.error:
-      logging.debug('Struct un/packing error')
-      return False
-    except KeyboardInterrupt:
-      logging.debug('Caught SIGINT')
-      return False
-    except BaseException:
-      logging.debug('Unknown error')
       return False
     return True
 

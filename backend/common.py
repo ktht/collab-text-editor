@@ -22,6 +22,7 @@ TMP_DIR_SERVER = os.path.join(TMP_DIR, 'server')
 TMP_DIR_CLIENT = os.path.join(TMP_DIR, 'client')
 
 DELIM         = '\0'
+DELIM_LONG    = '\0' * 3
 DELIM_ID_FILE = ':'
 
 def close_socket(sock):

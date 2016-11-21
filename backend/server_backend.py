@@ -46,107 +46,129 @@ class server:
     common.close_socket(self.socket)
 
   def __handle(self, sock, addr):
+    '''Initial handshake + delegation to polling sender/receiver thread
+    :param sock: fd, client socket
+    :param addr: string, client's address
+    :return: None
+    '''
     try:
-      # initial handshake
-      init_args = None
-      while True:
-        # 1) receive either request for a new id,
-        # or initialization of a new session
+      usr_id, usr_files = None, None
+      # receive either request for a new id, or initialization of a new session
 
-        while init_args is None:
-          init_data = sock.recv(common.ctrl_struct.size)
-          if not init_data:
-            logging.error("Didn't receive any data from the client")
-          unp_init_data = common.ctrl_struct.unpack(init_data)
-          init_ctrl, init_pl = unp_init_data
-          logging.debug("Received data: %s" % str(unp_init_data))
+      while usr_id is None or usr_files is None:
+        init_data = sock.recv(common.ctrl_struct.size)
+        if not init_data:
+          logging.error("Didn't receive any data from the client")
+          break
+        unp_init_data = common.ctrl_struct.unpack(init_data)
+        init_ctrl, init_pl = unp_init_data
+        logging.debug("Received data: %s" % str(unp_init_data))
 
-          if init_ctrl == common.CTRL_REQ_NEW_ID:
-            # we have a new user; let's give him/her a new ID
-            new_id = self.db.add_user()
-            if new_id:
-              logging.info("Created a new user w/ ID '%s'" % str(new_id))
+        if init_ctrl == common.CTRL_REQ_NEW_ID:
+          # we have a new user; let's give him/her a new ID
+          new_id = self.db.add_user()
+          if new_id:
+            logging.info("Created a new user w/ ID '%s'" % str(new_id))
 
-              # let the user know its new ID
-              p_new_id = common.ctrl_struct.pack(*(common.CTRL_OK, new_id))
-              sock.sendall(p_new_id)
-            else:
-              logging.info("Could not create a new user, aborting connection")
-              break
-            continue
-          elif init_ctrl == common.CTRL_REQ_INIT_SESS:
-            # the user requests a new session
-            # send a list of available files back
-            # the payload user sent is expected to be the user ID
-            usr_id = int(init_pl)
-            logging.debug("User #ID = '%d' initialized a session, retriveing list of files" % usr_id)
-            usr_files = self.db.get_user_files(usr_id)
-            if usr_files is None:
-              # this fails if the user does not exist in the DB
-              logging.debug("User #ID = '%d' is not registered in our DB, cut him/her" % usr_id)
-              break
-            files_pl = str(common.CTRL_OK) + (common.DELIM * 3) + common.DELIM.join(usr_files)
-            sock.sendall(files_pl)
-
-            # wait for the user to respond with a request to either open an existing file
-            # or to create a new file; an existing file may be also be owned by another user, which
-            # is identified by the user and the file name itself, e.g.
-            #     user_id:file_name
-            # (otherwise there would be no way to collaboratively edit any files)
-            # if the user_id is different from initiator of the session, and the file does not
-            # exist (or in future cases, not made public for editing), dismiss the request
-            # long story short, expect a file name from the user
-
-            #TODO: create a manager class that deals with file handlers and editing
-            fn = common.recv(sock)
-            fn_id, fn_loc = fn.split(common.DELIM_ID_FILE)
-            fn_id = int(fn_id)
-            if fn_id != usr_id:
-              logging.debug("User #ID = '%d' requested file '%s' from user #ID = '%d'" % (usr_id, fn_loc, fn_id))
-              # request the other user's files
-              othr_files = self.db.get_user_files(fn_id)
-              if fn not in othr_files:
-                logging.debug("User #ID = '%d' requested file '%s' from user #ID = '%d' which does not exist; abort" %
-                              (usr_id, fn_loc, fn_id))
-                break
-              else:
-                logging.debug("User #ID = '%d' starts editing file '%s' owned by user #ID = '%d'" %
-                              (usr_id, fn_loc, fn_id))
-                init_args = (sock, fn, False)
-            else:
-              logging.debug("User #ID = '%d' requested to open their own file '%s'" % (usr_id, fn_loc))
-              if fn not in usr_files:
-                logging.debug("User #ID = '%d' requested to create a new file '%s'" % (usr_id, fn_loc))
-                init_args = (sock, fn, True)
-                # update db accordingly
-              else:
-                logging.debug("User #ID = '%d' requested to open an existing file '%s'" % (usr_id, fn_loc))
-                # open an existing file
-                init_args = (sock, fn, False)
-              break
+            # let the user know its new ID
+            p_new_id = common.ctrl_struct.pack(*(common.CTRL_OK, new_id))
+            sock.sendall(p_new_id)
           else:
+            logging.info("Could not create a new user, aborting connection")
             break
-        if init_args is None:
-          logging.error("Unauthenticated user?!")
+          continue
+        elif init_ctrl == common.CTRL_REQ_INIT_SESS:
+          # the user requests a new session
+          # send a list of available files back
+          # the payload user sent is expected to be the user ID
+          usr_id = int(init_pl)
+          logging.debug("User #ID = '%d' initialized a session, retriveing list of files" % usr_id)
+          usr_files = self.db.get_user_files(usr_id)
+          if usr_files is None:
+            # this fails if the user does not exist in the DB
+            logging.debug("User #ID = '%d' is not registered in our DB, cut him/her" % usr_id)
+            break
+          logging.debug("Sending the list of %d files to user #ID = '%d'" % (len(usr_files), usr_id))
+          files_pl = str(common.CTRL_OK) + common.DELIM_LONG + common.DELIM.join(usr_files)
+          sock.sendall(files_pl)
+          break
+        else:
+          logging.debug('Wrong command')
           break
 
-        # create a new thread and attach the file handler manager to it
+      if usr_id is None or usr_files is None:
+        logging.debug('Could not initate the session, abort')
+        raise RuntimeError("Session initialization error")
 
-        # recv from client
-        # client_id / request for new client_id
-        # client awaits for a confirmation == list of files (control code)
-        # client requests for a file
-        # server opens an existing file/creates a new file
-        # if file exists, send its contents to the client
-        # ???
-        # profit
+      # wait for the user to respond with a request to either open an existing file
+      # or to create a new file; an existing file may be also be owned by another user, which
+      # is identified by the user and the file name itself, e.g.
+      #     user_id:file_name
+      # (otherwise there would be no way to collaboratively edit any files)
+      # if the user_id is different from initiator of the session, and the file does not
+      # exist (or in future cases, not made public for editing), dismiss the request
+      # long story short, expect a file name from the user
 
-        # all client threads in server always sleeping
-        # if a client sent its changes to the server, then the receiving thread picks it up, puts the message
-        # into a queue, notifies all consumer threads via a conditional variable,
-        # upon which one of the consumer threads sends the message to all relevant clients
-        #
-        # 3 threads for a client on client side?
+      #TODO: create a manager class that deals with file handlers and editing
+      logging.debug("Waiting user's #ID = '%d' request to open/create a file" % usr_id)
+      init_args = None
+      fn = sock.recv(common.BUF_SZ) #common.recv(sock)
+      if fn == '':
+        raise RuntimeError("Received nothing from the client")
+      fn_id, fn_loc = fn.split(common.DELIM_ID_FILE)
+      fn_id = int(fn_id)
+      if fn_id != usr_id:
+        logging.debug("User #ID = '%d' requested file '%s' from user #ID = '%d'" % (usr_id, fn_loc, fn_id))
+        # request the other user's files
+        othr_files = self.db.get_user_files(fn_id)
+        if fn not in othr_files:
+          logging.debug("User #ID = '%d' requested file '%s' from user #ID = '%d' which does not exist; abort" %
+                        (usr_id, fn_loc, fn_id))
+        else:
+          logging.debug("User #ID = '%d' starts editing file '%s' owned by user #ID = '%d'" %
+                        (usr_id, fn_loc, fn_id))
+          init_args = (sock, fn, usr_id, False)
+      else:
+        logging.debug("User #ID = '%d' requested to open their own file '%s'" % (usr_id, fn_loc))
+        if fn not in usr_files:
+          logging.debug("User #ID = '%d' requested to create a new file '%s'" % (usr_id, fn_loc))
+          init_args = (sock, fn, usr_id, True)
+          # update db accordingly
+          self.db.add_user_file(usr_id, fn_loc)
+        else:
+          logging.debug("User #ID = '%d' requested to open an existing file '%s'" % (usr_id, fn_loc))
+          # open an existing file
+          init_args = (sock, fn, usr_id, False)
+
+      logging.debug("Got something")
+
+      if init_args is None:
+        logging.error("Unauthenticated user?!")
+        raise RuntimeError("Unknown error")
+
+      p_final_resp = common.ctrl_struct.pack(*(common.CTRL_OK, 0))
+      sock.sendall(p_final_resp)
+      logging.debug("Session created for the user #ID = '%d'" % init_args[2])
+
+      # create a new thread and attach the file handler manager to it
+      # the manager should create the file and update it regularly upon clients' changes
+      # one manager per file which handles multiple clients simultaneously using select()?
+
+      # recv from client
+      # client_id / request for new client_id
+      # client awaits for a confirmation == list of files (control code)
+      # client requests for a file
+      # server opens an existing file/creates a new file
+      # if file exists, send its contents to the client
+      # ???
+      # profit
+
+      # all client threads in server always sleeping
+      # if a client sent its changes to the server, then the receiving thread picks it up, puts the message
+      # into a queue, notifies all consumer threads via a conditional variable,
+      # upon which one of the consumer threads sends the message to all relevant clients
+      #
+      # 3 threads for a client on client side?
     except struct.error as err:
       logging.error('Encountered unpacking error: %s' % err)
     except socket.timeout:
@@ -155,8 +177,8 @@ class server:
       logging.error('Socket error: %s' % err)
     except IOError as err:
       logging.error('I/O error: %s' % err)
-    except MemoryError as err:
-      logging.error('Memory error: %s' % err)
+    except RuntimeError as err:
+      logging.error('Runtime error: %s' % err)
     except BaseException as err:
       logging.error('Unkown error: %s' % err)
     finally:

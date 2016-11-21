@@ -68,7 +68,7 @@ class db_manager:
       logging.debug("User '%s' does not exist in our DB" % str(user_id))
       return False
 
-    new_file_locator = common.DELIM_ID_FILE.join([user_id, new_file])
+    new_file_locator = common.DELIM_ID_FILE.join([str(user_id), new_file])
     entry_updated = False
     for entry in self.db:
       if entry['ID'] == user_id:
