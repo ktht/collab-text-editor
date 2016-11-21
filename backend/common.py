@@ -12,10 +12,12 @@ TCP_CLIENT_KEEPINTVL     = 1                # 1 second
 TCP_CLIENT_KEEPCNT       = 5                # 5 seconds
 
 ctrl_struct = struct.Struct('I Q') # unisnged int + unsigned long long (9 bytes in total)
-CTRL_OK            = int(0x01 << 0)
-CTRL_REQ_NEW_ID    = int(0x01 << 1)
-CTRL_REQ_INIT_SESS = int(0x01 << 2)
-CTRL_REQ_FILE      = int(0x01 << 3)
+CTRL_OK             = int(0x01 << 0)
+CTRL_OK_CREATE_FILE = int(0x01 << 1)
+CTRL_OK_READ_FILE   = int(0x01 << 2)
+CTRL_REQ_NEW_ID     = int(0x01 << 3)
+CTRL_REQ_INIT_SESS  = int(0x01 << 4)
+CTRL_REQ_FILE       = int(0x01 << 5)
 
 TMP_DIR = os.path.join(os.path.expanduser('~'), '.tmp_collab')
 TMP_DIR_SERVER = os.path.join(TMP_DIR, 'server')

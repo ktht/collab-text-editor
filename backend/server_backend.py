@@ -1,4 +1,4 @@
-import common, logging, socket, os, threading, struct, db_manager
+import common, logging, socket, os, threading, struct, db_manager, client_manager
 
 metainfo = {
   'description' : '{name} {version} %s (%s)'.format(
@@ -15,6 +15,7 @@ class server:
     self.addr_port = (addr, port)
     self.directory = os.path.abspath(directory)
     self.db = None
+    self.managers = {} # dict of client managers
 
     self.socket   = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -43,6 +44,7 @@ class server:
     return self
 
   def __exit__(self, exc_type, exc_val, exc_tb):
+    logging.debug('')
     common.close_socket(self.socket)
 
   def __handle(self, sock, addr):
@@ -127,18 +129,18 @@ class server:
         else:
           logging.debug("User #ID = '%d' starts editing file '%s' owned by user #ID = '%d'" %
                         (usr_id, fn_loc, fn_id))
-          init_args = (sock, fn, usr_id, False)
+          init_args = { 'socket' : sock, 'filename' : fn, 'user_id' : usr_id, 'create_file' : False }
       else:
         logging.debug("User #ID = '%d' requested to open their own file '%s'" % (usr_id, fn_loc))
         if fn not in usr_files:
           logging.debug("User #ID = '%d' requested to create a new file '%s'" % (usr_id, fn_loc))
-          init_args = (sock, fn, usr_id, True)
+          init_args = { 'socket' : sock, 'filename' : fn, 'user_id' : usr_id, 'create_file' : True }
           # update db accordingly
           self.db.add_user_file(usr_id, fn_loc)
         else:
           logging.debug("User #ID = '%d' requested to open an existing file '%s'" % (usr_id, fn_loc))
           # open an existing file
-          init_args = (sock, fn, usr_id, False)
+          init_args = { 'socket' : sock, 'filename' : fn, 'user_id' : usr_id, 'create_file' : False }
 
       logging.debug("Got something")
 
@@ -146,44 +148,44 @@ class server:
         logging.error("Unauthenticated user?!")
         raise RuntimeError("Unknown error")
 
-      p_final_resp = common.ctrl_struct.pack(*(common.CTRL_OK, 0))
+      final_ctrl_code = common.CTRL_OK_CREATE_FILE if init_args['create_file'] else common.CTRL_OK_READ_FILE
+      p_final_resp = common.ctrl_struct.pack(*(final_ctrl_code, 0))
       sock.sendall(p_final_resp)
-      logging.debug("Session created for the user #ID = '%d'" % init_args[2])
+      logging.debug("Session created for the user #ID = '%d'" % init_args['user_id'])
+      # the client awaits more data, if the control code sent is CTRL_OK_READ_FILE
 
-      # create a new thread and attach the file handler manager to it
-      # the manager should create the file and update it regularly upon clients' changes
-      # one manager per file which handles multiple clients simultaneously using select()?
+      # HANDSHAKE ENDS HERE
+      # DELEGATE THE FILE READING/WRITING MECHANISM TO A SEPARATE THREAD
 
-      # recv from client
-      # client_id / request for new client_id
-      # client awaits for a confirmation == list of files (control code)
-      # client requests for a file
-      # server opens an existing file/creates a new file
-      # if file exists, send its contents to the client
-      # ???
-      # profit
+      if fn not in self.managers:
+        self.managers[fn] = client_manager.client_manager(fn)
+      self.managers[fn].add_client(init_args) # may start a new thread for the file if not already running
 
-      # all client threads in server always sleeping
-      # if a client sent its changes to the server, then the receiving thread picks it up, puts the message
-      # into a queue, notifies all consumer threads via a conditional variable,
-      # upon which one of the consumer threads sends the message to all relevant clients
-      #
-      # 3 threads for a client on client side?
     except struct.error as err:
       logging.error('Encountered unpacking error: %s' % err)
-    except socket.timeout:
-      logging.debug('Client connected from %s:%d timed out' % addr)
-    except socket.error as err:
-      logging.error('Socket error: %s' % err)
-    except IOError as err:
-      logging.error('I/O error: %s' % err)
-    except RuntimeError as err:
-      logging.error('Runtime error: %s' % err)
-    except BaseException as err:
-      logging.error('Unkown error: %s' % err)
-    finally:
       logging.debug('Closing client connected from %s:%d' % addr)
       common.close_socket(sock)
+    except socket.timeout:
+      logging.debug('Client connected from %s:%d timed out' % addr)
+      logging.debug('Closing client connected from %s:%d' % addr)
+      common.close_socket(sock)
+    except socket.error as err:
+      logging.error('Socket error: %s' % err)
+      logging.debug('Closing client connected from %s:%d' % addr)
+      common.close_socket(sock)
+    except IOError as err:
+      logging.error('I/O error: %s' % err)
+      logging.debug('Closing client connected from %s:%d' % addr)
+      common.close_socket(sock)
+    except RuntimeError as err:
+      logging.error('Runtime error: %s' % err)
+      logging.debug('Closing client connected from %s:%d' % addr)
+      common.close_socket(sock)
+    except BaseException as err:
+      logging.error('Unkown error: %s' % err)
+      logging.debug('Closing client connected from %s:%d' % addr)
+      common.close_socket(sock)
+
 
   def listen(self):
     logging.debug('Setting the client queue to %d' % self.tcp_client_queue)

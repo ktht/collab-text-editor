@@ -103,34 +103,55 @@ class client:
     return self.files
 
   def req_file(self, fn):
+    '''Returns file contents
+    :param fn: string, file name (id:file basename) to be opened
+    :return: string, the contents of the file if everything succeeded
+             None, if there was an error
+    '''
     if self.id is None:
       logging.error("Yo, what's up! You have no ID and should request one "
                     "from the server before initiating the session (use: req_id())")
       return False
+    file_contents = ''
     try:
       logging.debug("Requesting to open file '%s' by server" % fn)
       self.sock.sendall(fn)
       p_new_file_resp = self.sock.recv(common.ctrl_struct.size)  # common.recv(self.sock)
       new_file_code, _ = common.ctrl_struct.unpack(p_new_file_resp)
-      if int(new_file_code) != common.CTRL_OK:
+      if new_file_code == common.CTRL_OK_CREATE_FILE:
+        logging.debug('Server had to create a new file, which is empty anyways')
+      elif new_file_code == common.CTRL_OK_READ_FILE:
+        logging.debug("Server has to serve the file for us; let's read it")
+        # read from socket
+        while True:
+          resp = self.sock.recv(common.BUF_SZ)
+          if resp:
+            file_contents += resp
+          else:
+            break
+      else:
         logging.error('Server was not happy')
-        return False
+        raise RuntimeError('Server was not happy b/c it sent us a wrong control code')
     except socket.timeout as err:
       logging.debug('Socket timeout error: %s' % err)
-      return False
+      return None
     except socket.error as err:
       logging.debug('Socket error: %s' % err)
-      return False
+      return None
     except struct.error as err:
       logging.debug('Struct un/packing error: %s' % err)
-      return False
+      return None
+    except RuntimeError as err:
+      logging.debug('Runtime error: %s' % err)
+      return None
     except KeyboardInterrupt:
       logging.debug('Caught SIGINT')
-      return False
+      return None
     except BaseException as err:
       logging.debug('Unknown error: %s' % err)
-      return False
-    return True
+      return None
+
+    return file_contents
 
   def init_session(self):
     pass

@@ -8,12 +8,12 @@ from client_backend import client
 def test_client(*args):
   with client(*args) as c:
     client_id = c.req_id()
-    logging.debug("Client ID is '%d'" % client_id)
+    logging.info("Client ID is '%d'" % client_id)
     client_files = c.req_session()
-    logging.debug("Client files: %s" % str(client_files))
-    c.req_file('%d:test.txt' % client_id)
-    logging.debug("Woo, success")
-    time.sleep(1)
+    logging.info("Client files: %s" % str(client_files))
+    file_contents = c.req_file('%d:test.txt' % client_id)
+    logging.info('Current file contents: %s' % file_contents)
+    logging.info("Woo, success")
 
 def test_server(*args):
   with server(*args) as s:
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     target = test_server,
     args = (common.SERVER_INET_ADDR_DEFAULT, common.SERVER_PORT_DEFAULT, common.TMP_DIR_SERVER)
   )
-  test_server_thread.setDaemon(True)
+  test_server_thread.setDaemon(True) # dies with the main thread
   test_server_thread.start()
 
   time.sleep(1)
@@ -41,3 +41,6 @@ if __name__ == '__main__':
   )
   test_client_thread.start()
   test_client_thread.join()
+
+  logging.debug('Server thread still running...')
+  time.sleep(1) # let the server run just a little bit
