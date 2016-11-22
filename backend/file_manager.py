@@ -30,9 +30,17 @@ class file_manager:
     self.fd.truncate()
 
   def close(self):
-    # gracefully close the file
+    '''Gracefully close the file
+    :return: None
+
+    Pro tip: make sure the function is called if the process is about to exit (use atexit.register())
+    __del__ won't work b/c we'd rely on Python's garbage collector or we should del explicitly
+    '''
     if not self.fd.closed:
       # write the changes back to the file
+      # this is needed b/c if the user opens a file but doesn't change it
+      # then due to the opening mode of 'w' the file will be blank
+      # in order to overcome this, we must write the file explicitly again
       self.__update__()
       # this check is valid for current process only
       # but since we're using threading module instead of multiprocessing, this is not an issue

@@ -22,8 +22,6 @@ if __name__ == '__main__':
 
   logging.info('File contents:')
   contents = fm.str()
-  print contents
-
   assert(contents == "First line\nThird line")
 
   logging.info('Fin')
