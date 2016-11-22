@@ -1,4 +1,6 @@
-import common, logging, socket, os, threading, struct, db_manager, client_manager
+import common, logging, socket, os, threading, struct
+from client_manager import client_manager
+from db_manager import db_manager
 
 metainfo = {
   'description' : '{name} {version} ({built})'.format(
@@ -41,7 +43,7 @@ class server:
 
     logging.debug('Socket bound to %s:%d' % self.socket.getsockname())
 
-    self.db = db_manager.db_manager(os.path.join(self.directory, 'db.json'))
+    self.db = db_manager(os.path.join(self.directory, 'db.json'))
 
     return self
 
@@ -135,18 +137,33 @@ class server:
         else:
           logging.debug("User #ID = '%d' starts editing file '%s' owned by user #ID = '%d'" %
                         (usr_id, fn_loc, fn_id))
-          init_args = { 'socket' : sock, 'filename' : fn, 'user_id' : usr_id, 'create_file' : False }
+          init_args = {
+            client_manager.KEY_SOCKET     : sock,
+            client_manager.KEY_FILENAME   : fn,
+            client_manager.KEY_USERID     : usr_id,
+            client_manager.KEY_CREATEFILE : False
+          }
       else:
         logging.debug("User #ID = '%d' requested to open their own file '%s'" % (usr_id, fn_loc))
         if fn not in usr_files:
           logging.debug("User #ID = '%d' requested to create a new file '%s'" % (usr_id, fn_loc))
-          init_args = { 'socket' : sock, 'filename' : fn, 'user_id' : usr_id, 'create_file' : True }
+          init_args = {
+            client_manager.KEY_SOCKET     : sock,
+            client_manager.KEY_FILENAME   : fn,
+            client_manager.KEY_USERID     : usr_id,
+            client_manager.KEY_CREATEFILE : True
+          }
           # update db accordingly
           self.db.add_user_file(usr_id, fn_loc)
         else:
           logging.debug("User #ID = '%d' requested to open an existing file '%s'" % (usr_id, fn_loc))
           # open an existing file
-          init_args = { 'socket' : sock, 'filename' : fn, 'user_id' : usr_id, 'create_file' : False }
+          init_args = {
+            client_manager.KEY_SOCKET     : sock,
+            client_manager.KEY_FILENAME   : fn,
+            client_manager.KEY_USERID     : usr_id,
+            client_manager.KEY_CREATEFILE : False
+          }
 
       logging.debug("Got something")
 
@@ -154,17 +171,15 @@ class server:
         logging.error("Unauthenticated user?!")
         raise RuntimeError("Unknown error")
 
-      final_ctrl_code = common.CTRL_OK_CREATE_FILE if init_args['create_file'] else common.CTRL_OK_READ_FILE
+      final_ctrl_code = common.CTRL_OK_CREATE_FILE if init_args[client_manager.KEY_CREATEFILE] else \
+                        common.CTRL_OK_READ_FILE
       p_final_resp = common.ctrl_struct.pack(*(final_ctrl_code, 0))
       sock.sendall(p_final_resp)
       logging.debug("Session created for the user #ID = '%d'" % init_args['user_id'])
       # the client awaits more data, if the control code sent is CTRL_OK_READ_FILE
 
-      # HANDSHAKE ENDS HERE
-      # DELEGATE THE FILE READING/WRITING MECHANISM TO A SEPARATE THREAD
-
       if fn not in self.managers:
-        self.managers[fn] = client_manager.client_manager(fn)
+        self.managers[fn] = client_manager(fn)
       self.managers[fn].add_client(init_args) # may start a new thread for the file if not already running
 
     except struct.error as err:

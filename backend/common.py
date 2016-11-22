@@ -28,6 +28,10 @@ DELIM         = '\0'
 DELIM_LONG    = '\0' * 3
 DELIM_ID_FILE = ':'
 
+EDIT_DELETE  = int(0x01 << 0)
+EDIT_REPLACE = int(0x01 << 1)
+EDIT_INSERT  = int(0x01 << 2)
+
 def close_socket(sock):
   import socket
 
@@ -63,25 +67,21 @@ def recv(sock, buf_sz = BUF_SZ):
 
 def marshall(line_no, action, payload): # payload must not contain any newline characters
   # client_id
-  assert(type(line_no) == int and type(action) == str and type(payload) == str)
-  action = action.upper() # make sure we use only capital letters as a control code
-  assert(action.upper() in ('R', 'D'))
-  msg = DELIM.join([str(line_no), action, payload])
-  logging.debug("Marshalled message: '%s'" % msg)
-  logging.debug("Delimiter: '%s'" % DELIM)
+  assert(type(line_no) == int and type(action) == int and type(payload) == str)
+  assert(line_no >= 0)
+  assert(action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT))
+  msg = DELIM.join([str(line_no), str(action), payload])
   return msg
 
 def unmarshall(msg):
   assert(type(msg) == str)
   split = msg.split(DELIM)
   assert(len(split) == 3)
-  logging.debug("Message to unmarshall: %s" % msg)
-  logging.debug("Split message: '%s'" % str(split))
-  line_no = int(split[0])
-  action  = split[1].upper()
-  assert(action in ('D', 'R'))
-  payload = split[2]
-  return line_no, action == 'R', payload
+  line_no, action, payload = int(split[0]), int(split[1]), split[2]
+
+  assert (line_no >= 0)
+  assert(action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT))
+  return line_no, action, payload
 
 def synchronized(lock_name):
   def wrapper(func):

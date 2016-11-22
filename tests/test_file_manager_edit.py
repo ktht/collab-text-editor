@@ -14,14 +14,14 @@ if __name__ == '__main__':
 
   fn = os.path.join(common.TMP_DIR_TEST, 'test.txt')
   fm = file_manager.file_manager(fn)
-  fm.edit(0, "Replaced line")
-  fm.edit(0, "First line")
-  fm.edit(1, "Second line")
-  fm.edit(2, "Third line")
-  fm.edit(1, "", False)
+  fm.edit(0, common.EDIT_REPLACE, "Replaced line")
+  fm.edit(0, common.EDIT_REPLACE, "First line")
+  fm.edit(1, common.EDIT_REPLACE, "Second line")
+  fm.edit(2, common.EDIT_REPLACE, "Third line")
+  fm.edit(1, common.EDIT_DELETE)
+  fm.edit(1, common.EDIT_INSERT,  "Between the lines")
 
-  logging.info('File contents:')
   contents = fm.str()
-  assert(contents == "First line\nThird line")
+  assert(contents == "First line\nBetween the lines\nThird line")
 
   logging.info('Fin')

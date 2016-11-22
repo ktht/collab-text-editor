@@ -198,3 +198,4 @@ class client:
     except BaseException as err:
       logging.debug('Unknown error: %s' % err)
       return False
+    return True

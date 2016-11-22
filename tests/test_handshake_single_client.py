@@ -5,16 +5,23 @@ import logging, threading, common, time
 from server_backend import server
 from client_backend import client
 
+test_file = 'test.txt'
+test_text = 'some text'
+client_id = None
+
 def test_client(*args):
   with client(*args) as c:
     client_id = c.req_id()
     logging.info("Client ID is '%d'" % client_id)
     client_files = c.req_session()
     logging.info("Client files: %s" % str(client_files))
-    file_contents = c.req_file('%d:test.txt' % client_id)
+    file_contents = c.req_file(common.DELIM_ID_FILE.join([str(client_id), test_file]))
     logging.info("Current file contents: '%s'" % file_contents)
-    ret_changes = c.send_changes(0, 'R', 'some text')
-    logging.info("Woo, success")
+    ret_changes = c.send_changes(0, common.EDIT_REPLACE, test_text)
+    if ret_changes:
+      logging.info("Woo, success")
+    else:
+      logging.error("ERROR!")
 
 def test_server(*args):
   with server(*args) as s:

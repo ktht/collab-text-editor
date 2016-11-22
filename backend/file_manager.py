@@ -17,6 +17,7 @@ class file_manager:
     self.lines = {}
     self.nof_lines = 0
 
+    # map line numbers and lines themselves to a dictionary
     if os.path.exists(self.fn) and os.path.isfile(self.fn):
       with open(self.fn, 'r') as f:
         self.lines = dict(enumerate(map(lambda x: x.rstrip('\n'), f.readlines())))
@@ -25,6 +26,11 @@ class file_manager:
     self.fd = open(self.fn, 'w')
 
   def __update__(self):
+    '''Updates the file with the contents of the dictionary representing the file
+    :return: None
+
+    Might throw, though
+    '''
     self.fd.seek(0)
     self.fd.writelines(self.str())
     self.fd.truncate()
@@ -49,8 +55,7 @@ class file_manager:
   def str(self):
     return '\n'.join(self.lines.values())
 
-  @common.synchronized("lock")#TODO
-  def edit(self, line_no, replace = True, new_line = ''):
+  def edit(self, line_no, action, new_line = ''):
     '''Edits a line in the file represented by a dictionary
     :param line_no:  int, The line nr to be edited (line numbers start from 0)
     :param new_line: string, The replacement line (ignored if `replace' is set to False)
@@ -61,20 +66,23 @@ class file_manager:
                      number of lines in the file)
     Note that if `line_no' is equal to the number of lines in the file, the line will be appended at the end of file
     '''
-    # lock this guy just in case multiple threads edit the file
-    # this will never happen, though, b/c there is one thread per file anyways
-    # but safety first
 
     # edits n-th line in place
-    logging.debug("Editing %d-th line in file '%s'" % (line_no, self.fn))
+    logging.debug("Editing %d-th line in file '%s' with action '%d'" %
+                  (line_no, self.fn, action))
     if line_no <= self.nof_lines:
-      if replace:
+      if action == common.EDIT_REPLACE:
         # replace an existing line or add a new line
         self.lines[line_no] = new_line
         if line_no == self.nof_lines:
           # we added a new line to the file
           self.nof_lines += 1
-      else:
+      elif action == common.EDIT_INSERT:
+        if line_no in self.lines:
+          for line_no_new in range(self.nof_lines, line_no, -1):
+            self.lines[line_no_new] = self.lines[line_no_new - 1]
+        self.lines[line_no] = new_line
+      elif action == common.EDIT_DELETE:
         del self.lines[line_no]
         line_no_next = line_no + 1
         if line_no_next in self.lines:
@@ -82,12 +90,20 @@ class file_manager:
             self.lines[line_no_new - 1] = self.lines[line_no_new]
         del self.lines[self.nof_lines - 1]
         self.nof_lines -= 1
+      else:
+        logging.debug("No such control code in file editing: %s" % str(action))
     else:
       logging.debug('Line number out of bounds!')
       return False
 
-    # ideally, this should be wrapped into try-except block
-    self.__update__()
+    try:
+      self.__update__()
+    except IOError as err:
+      logging.debug("Caught an I/O error: %s" % err)
+      return False
+    except BaseException as err:
+      logging.debug("Unknown error: %s" % err)
+      return False
 
     logging.debug('Successfully updated the file')
     return True
