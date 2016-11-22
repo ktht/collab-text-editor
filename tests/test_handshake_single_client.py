@@ -12,7 +12,7 @@ def test_client(*args):
     client_files = c.req_session()
     logging.info("Client files: %s" % str(client_files))
     file_contents = c.req_file('%d:test.txt' % client_id)
-    logging.info('Current file contents: %s' % file_contents)
+    logging.info("Current file contents: '%s'" % file_contents)
     logging.info("Woo, success")
 
 def test_server(*args):
