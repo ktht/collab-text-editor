@@ -2,6 +2,7 @@ import Tkinter as tk
 import sys, tkFileDialog, os, Queue, threading, time, random
 
 import backend.common
+from backend.client_backend import client
 from tkSimpleDialog import askstring
 from tkFileDialog   import asksaveasfilename
 
@@ -34,11 +35,10 @@ class TextEdGUI(tk.Tk):
         for F in (ConnectPage, SelectorPage, EditorPage):
             frame = F(container, self)
             self.frames[F] = frame
+            page_name = F.__name__
+            self.frames[page_name] = frame
 
             frame.grid(row=0, column=0, sticky="nsew")
-
-        page_name = EditorPage.__name__
-        self.frames[page_name] = frame
 
         self.show_frame(ConnectPage)
 
@@ -79,6 +79,7 @@ class TextEdGUI(tk.Tk):
         while self.queue_send.qsize():
             try:
                 msg = self.queue_send.get(0)
+                #print(self.get_page("ConnectPage").entryText.get())
                 #self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
                 #print msg
             except Queue.Empty:
@@ -90,32 +91,35 @@ class ConnectPage(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
+        self.controller = controller
 
         label = tk.Label(self, text="Connect Page", font=("Verdana", 12))
         label.grid(pady = 10, padx = 10,row=0, column=0, sticky="new")
 
+        #button1 = tk.Button(self, text="Connect",
+        #                    command=lambda: controller.show_frame(SelectorPage))
         button1 = tk.Button(self, text="Connect",
-                            command=lambda: controller.show_frame(SelectorPage))
+                            command=lambda: self.funcs(self.controller))
         button1.grid(row=3, column=3, padx=15)
 
         label6 = tk.Label(self, text="User ID").grid(row=1, column=0, pady=5)
         label4 = tk.Label(self, text="Server IP").grid(row=2,column=0)
         label5 = tk.Label(self, text="Server Port").grid(row=3, column=0)
 
-        entryText = tk.StringVar()
-        entry = tk.Entry(self, textvariable=entryText).grid(row=1, column=1)
-        entryText.set("Default user ID")
+        self.entryText = tk.StringVar()
+        entry = tk.Entry(self, textvariable=self.entryText).grid(row=1, column=1)
 
-        entryText2 = tk.StringVar()
-        entry2 = tk.Entry(self, textvariable=entryText2).grid(row=2, column=1)
-        entryText2.set(backend.common.SERVER_INET_ADDR_DEFAULT)
+        self.entryText2 = tk.StringVar()
+        entry2 = tk.Entry(self, textvariable=self.entryText2).grid(row=2, column=1)
+        self.entryText2.set(backend.common.SERVER_INET_ADDR_DEFAULT)
 
-        entryText3 = tk.StringVar()
-        entry3 = tk.Entry(self, textvariable=entryText3).grid(row=3, column=1)
-        entryText3.set(backend.common.SERVER_PORT_DEFAULT)
+        self.entryText3 = tk.StringVar()
+        entry3 = tk.Entry(self, textvariable=self.entryText3).grid(row=3, column=1)
+        self.entryText3.set(backend.common.SERVER_PORT_DEFAULT)
 
-
-
+    def funcs(self, contr):
+        contr.show_frame(SelectorPage)
+        client1.e.set()
 
 class SelectorPage(tk.Frame):
 
@@ -126,58 +130,46 @@ class SelectorPage(tk.Frame):
         label = tk.Label(self, text="Select file to modify", font=("Verdana", 12))
         label.grid(pady = 10, padx = 10,row=0, column=0, sticky="new")
 
-        label7 = tk.Label(self, text="File directory").grid(row=1, column=0, pady=5)
-        label8 = tk.Label(self, text="Files").grid(row=2, column=0, pady=5)
+        label7 = tk.Label(self, text="ID").grid(row=1, column=0, pady=5)
+        label8 = tk.Label(self, text="File").grid(row=2, column=0, pady=5)
+        label8 = tk.Label(self, text="Files").grid(row=3, column=0, pady=5)
+
+        tk.Button(self, text='Select', command=lambda: controller.show_frame(EditorPage)
+                  ).grid(row=2, column=2, padx=15, pady=5)
 
         button3 = tk.Button(self, text="Disconnect",
                             command=lambda: controller.show_frame(ConnectPage))
-        button3.grid(row=3, column=1)
+        button3.grid(row=4, column=1)
 
-        button4 = tk.Button(self, text="Select",
+        button4 = tk.Button(self, text="Select from list",
                             command= self.select_Listelem)
-        button4.grid(row=2, column=3, padx=10)
+        button4.grid(row=3, column=2, padx=10)
 
         self.entryText4 = tk.StringVar()
         entry4 = tk.Entry(self, textvariable=self.entryText4).grid(row=1, column=1)
-        self.entryText4.set("Default directory")
+        self.entryText4.set("Files user ID")
+
+        self.entryText5 = tk.StringVar()
+        entry4 = tk.Entry(self, textvariable=self.entryText5).grid(row=2, column=1)
+        self.entryText5.set("File ID")
 
         self.listBox = tk.Listbox(self)
-        self.listBox.grid(row=2, column=1, pady=10, padx=10)
-        self.listBox.insert(tk.END, "a list entry")
+        self.listBox.grid(row=3, column=1, pady=10, padx=10)
 
-        tk.Button(self, text='Choose dir', command=self.askdirectory).grid(row=1, column=3, padx=15, pady=10)
+        self.var = tk.IntVar()
+        checkBox = tk.Checkbutton(self, text="Public", variable=self.var, command=self.checkingBox)
+        checkBox.grid(row = 1, column = 2)
 
-        # defining options for opening a directory
-        self.dir_opt = options = {}
-        options['initialdir'] = '/home'
-        options['mustexist'] = False
-        options['parent'] = parent
-        options['title'] = 'Choose directory..'
+    def checkingBox(self):
+        print(self.var.get())
 
     def select_Listelem(self):
         try:
-            print(os.path.expanduser("~"))
             print(self.listBox.get(self.listBox.curselection()))
             self.controller.show_frame(EditorPage)
-            print(os.path.dirname(os.path.realpath(__file__)))
         except Exception:
             print('Nothing has been selected from the list!')
             #assert type(exception).__name__ == 'NameError'
-
-    def askdirectory(self):
-        dirname = tkFileDialog.askdirectory(**self.dir_opt)
-        if dirname:
-            self.entryText4.set(dirname)
-            print(os.path.isdir(self.entryText4.get()))
-            print(os.listdir(self.entryText4.get()))
-            self.populateListbox()
-
-    def populateListbox(self):
-        self.listBox.delete(0, tk.END)
-        for i in os.listdir(self.entryText4.get()):
-            self.listBox.insert(tk.END, i)
-
-
 
 
 class EditorPage(tk.Frame):
@@ -185,6 +177,7 @@ class EditorPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
 
+        self.controller = controller
         self.text = CustomText(self, height=25, width=80)
         self.text.grid(column=0, row=0, sticky="nw")
         self.text.grid(column=0, row=0, sticky="nw")
@@ -262,19 +255,32 @@ def popupmsg(argument):
 class ThreadedClient(threading.Thread):
 
     def __init__(self):
-
         self.queue_send = Queue.Queue()
 
         self.gui = TextEdGUI(self.queue_send, self.endApplication)
-        self.gui.get_page("EditorPage").text.insert("1.0","Hello, world!")
+        #self.gui.get_page("EditorPage").text.insert("1.0","Hello, world!")
 
         self.running = 1
+        self.e = threading.Event()
         self.thread1 = threading.Thread(target=self.workerThread1)
         self.thread2 = threading.Thread(target=self.workerThread2)
+        self.thread3 = threading.Thread(target = self.clientThread)
+
         self.thread1.start()
         self.thread2.start()
+        self.thread3.start()
 
         self.periodicCall() # Periodic call to check if the queue contains something
+
+        self.create_new_ID = False
+        try:
+            with open(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'), 'r') as f:
+                self.ID_from_file = f.readline()
+                self.gui.get_page("ConnectPage").entryText.set(str(self.ID_from_file).rstrip())
+        except IOError:
+            self.gui.get_page("ConnectPage").entryText.set("New user")
+            self.create_new_ID = True
+            print("File for user ID was not found!")
 
     def periodicCall(self):
         self.gui.processIncoming()
@@ -283,7 +289,6 @@ class ThreadedClient(threading.Thread):
         self.gui.after(200, self.periodicCall) # Check every 200 ms if there is something new in the queue.
 
     def workerThread1(self):
-
         while self.running:
             time.sleep(random.random() * 1.5)
             msg = random.random()
@@ -296,17 +301,47 @@ class ThreadedClient(threading.Thread):
             while queue_recv.qsize():
                 try:
                     msg = queue_recv.get(0)
-                    #self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
                     print msg
                 except Queue.Empty:
                     pass
+
+
+    def clientThread(self):
+        self.e.wait()
+        usr_ID = self.gui.get_page("ConnectPage").entryText.get()
+        server_IP  = self.gui.get_page("ConnectPage").entryText2.get()
+        server_PORT = int(self.gui.get_page("ConnectPage").entryText3.get())
+
+        with client(server_IP, server_PORT, backend.common.TMP_DIR_SERVER, int(usr_ID)) as c:
+            print("Server connected")
+            if self.create_new_ID:
+                client_id = c.req_id()
+            else:
+                client_id = usr_ID
+
+            client_files = c.req_session()
+            self.gui.get_page("SelectorPage").listBox.delete(0, tk.END)
+            for i in client_files:
+                self.gui.get_page("SelectorPage").listBox.insert(tk.END, i)
+            file_contents = c.req_file('%d:test.txt' % 4)
+            #print(client_files)
+
+            while(self.running):
+                time.sleep(0.2)
+
 
     def endApplication(self):
         self.running = 0
 
 if __name__ == '__main__':
-    client = ThreadedClient()
-    client.gui.mainloop()
+    client1 = ThreadedClient()
+    client1.gui.mainloop()
+
+
+# Klient yritab yhenduda serveriga vaartuste abil, mis on kuvatud Connect Page lehel
+# Default ID loetakse sisse .tmp_collab/client olevast failist
+# Kui seal ID puudub, tuleb pop up, mis kysib ka olete uus kasutaja ning kas soovite luua uue ID?
+#
 
 
 
