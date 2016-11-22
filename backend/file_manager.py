@@ -49,8 +49,8 @@ class file_manager:
   def str(self):
     return '\n'.join(self.lines.values())
 
-  @common.synchronized("lock")
-  def edit(self, line_no, new_line = '', replace = True):
+  @common.synchronized("lock")#TODO
+  def edit(self, line_no, replace = True, new_line = ''):
     '''Edits a line in the file represented by a dictionary
     :param line_no:  int, The line nr to be edited (line numbers start from 0)
     :param new_line: string, The replacement line (ignored if `replace' is set to False)

@@ -61,6 +61,28 @@ def recv(sock, buf_sz = BUF_SZ):
       break
   return msg
 
+def marshall(line_no, action, payload): # payload must not contain any newline characters
+  # client_id
+  assert(type(line_no) == int and type(action) == str and type(payload) == str)
+  action = action.upper() # make sure we use only capital letters as a control code
+  assert(action.upper() in ('R', 'D'))
+  msg = DELIM.join([str(line_no), action, payload])
+  logging.debug("Marshalled message: '%s'" % msg)
+  logging.debug("Delimiter: '%s'" % DELIM)
+  return msg
+
+def unmarshall(msg):
+  assert(type(msg) == str)
+  split = msg.split(DELIM)
+  assert(len(split) == 3)
+  logging.debug("Message to unmarshall: %s" % msg)
+  logging.debug("Split message: '%s'" % str(split))
+  line_no = int(split[0])
+  action  = split[1].upper()
+  assert(action in ('D', 'R'))
+  payload = split[2]
+  return line_no, action == 'R', payload
+
 def synchronized(lock_name):
   def wrapper(func):
     @functools.wraps(func)

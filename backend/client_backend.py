@@ -8,7 +8,9 @@ class client:
     self.addr_port = (addr, port)
     self.dir       = dirname
     self.id        = client_id
+    self.fn        = None
     self.files     = []
+    self.queue_incoming = None
 
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     logging.debug('Created client socket, desciptor %d' % self.sock.fileno())
@@ -30,6 +32,9 @@ class client:
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     common.close_socket(self.sock)
+
+  def register_queue(self, queue):
+    self.queue_incoming =  queue
 
   def req_id(self):
     '''Request a new client ID from the server
@@ -112,10 +117,11 @@ class client:
       logging.error("Yo, what's up! You have no ID and should request one "
                     "from the server before initiating the session (use: req_id())")
       return False
+    self.fn = fn
     file_contents = ''
     try:
-      logging.debug("Requesting to open file '%s' by server" % fn)
-      self.sock.sendall(fn)
+      logging.debug("Requesting to open file '%s' by server" % self.fn)
+      self.sock.sendall(self.fn)
       p_new_file_resp = self.sock.recv(common.ctrl_struct.size)  # common.recv(self.sock)
       if not p_new_file_resp:
         logging.debug("Server was not happy")
@@ -161,5 +167,34 @@ class client:
 
     return file_contents
 
-  def init_session(self):
-    pass
+  def send_changes(self, line_no, action, payload):
+    if self.id is None:
+      logging.error("Yo, what's up! You have no ID and should request one "
+                    "from the server before initiating the session (use: req_id())")
+      return False
+    if self.fn is None:
+      logging.error("You haven't requested any files from the server. SMH")
+      return False
+    msg = common.marshall(line_no, action, payload)
+    logging.debug("Sending message: '%s'" % msg)
+    try:
+      logging.debug("Send the changes made in file '%s' to the server" % self.fn)
+      self.sock.sendall(msg)
+    except socket.timeout as err:
+      logging.debug('Socket timeout error: %s' % err)
+      return False
+    except socket.error as err:
+      logging.debug('Socket error: %s' % err)
+      return False
+    except struct.error as err:
+      logging.debug('Struct un/packing error: %s' % err)
+      return False
+    except RuntimeError as err:
+      logging.debug('Runtime error: %s' % err)
+      return False
+    except KeyboardInterrupt:
+      logging.debug('Caught SIGINT')
+      return False
+    except BaseException as err:
+      logging.debug('Unknown error: %s' % err)
+      return False

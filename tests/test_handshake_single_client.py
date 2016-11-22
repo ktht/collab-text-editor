@@ -13,6 +13,7 @@ def test_client(*args):
     logging.info("Client files: %s" % str(client_files))
     file_contents = c.req_file('%d:test.txt' % client_id)
     logging.info("Current file contents: '%s'" % file_contents)
+    ret_changes = c.send_changes(0, 'R', 'some text')
     logging.info("Woo, success")
 
 def test_server(*args):
