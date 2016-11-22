@@ -16,7 +16,7 @@ class client_manager:
     # this function will be called in a separate thread dedicated to a client anyways
     if not client_metadata['create_file']:
       # send the whole contents of the file to the client
-      for chunk in common.read_chunks(self.file_manager.fd):
+      for chunk in self.file_manager.chunks():
         client_metadata['socket'].sendall(chunk) # blocks!
 
     if not self.client_manager_thread_instance.isAlive():

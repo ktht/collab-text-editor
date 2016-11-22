@@ -22,6 +22,7 @@ CTRL_REQ_FILE       = int(0x01 << 5)
 TMP_DIR = os.path.join(os.path.expanduser('~'), '.tmp_collab')
 TMP_DIR_SERVER = os.path.join(TMP_DIR, 'server')
 TMP_DIR_CLIENT = os.path.join(TMP_DIR, 'client')
+TMP_DIR_TEST   = os.path.join(TMP_DIR, 'test')
 
 DELIM         = '\0'
 DELIM_LONG    = '\0' * 3

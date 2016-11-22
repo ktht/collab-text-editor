@@ -6,6 +6,8 @@ metainfo = {
   )
 }
 
+#TODO: how to clean up the dict of client managers?
+
 class server:
   tcp_client_queue = 10
 
