@@ -13,15 +13,17 @@ class file_manager:
 
     parent_dir = os.path.dirname(self.fn)
     if not os.path.exists(parent_dir):
-      logging.debug("Directory '%s' does not exist, creating it")
+      logging.debug("Directory '%s' does not exist, creating it" % parent_dir)
       os.makedirs(parent_dir)
 
     logging.debug("Opening file '%s' for reading" % self.fn)
     self.lines = {}
     self.nof_lines = 0
-    with open(self.fn, 'r') as f:
-      self.lines = dict(enumerate(map(lambda x: x.rstrip('\n'), f.readlines())))
-      self.nof_lines = len(self.lines)
+
+    if os.path.exists(self.fn) and os.path.isfile(self.fn):
+      with open(self.fn, 'r') as f:
+        self.lines = dict(enumerate(map(lambda x: x.rstrip('\n'), f.readlines())))
+        self.nof_lines = len(self.lines)
 
     self.fd = open(self.fn, 'w')
 

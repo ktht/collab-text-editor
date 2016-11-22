@@ -5,9 +5,9 @@ import logging, file_manager, common
 
 if __name__ == '__main__':
   logging.basicConfig(
-    level=logging.DEBUG,
-    format='[%(asctime)s] [%(threadName)s] [%(module)s:%(funcName)s:%(lineno)d] [%(levelname)s] -- %(message)s',
-    stream=sys.stdout
+    level  = logging.DEBUG,
+    format = '[%(asctime)s] [%(threadName)s] [%(module)s:%(funcName)s:%(lineno)d] [%(levelname)s] -- %(message)s',
+    stream = sys.stdout
   )
 
   logging.info('Welcome to file_manager testing; take a seat')

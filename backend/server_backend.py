@@ -1,8 +1,8 @@
 import common, logging, socket, os, threading, struct, db_manager, client_manager
 
 metainfo = {
-  'description' : '{name} {version} %s (%s)'.format(
-                  name = 'Collab text editor server', version = '0.0.1', built = '11/11/16'
+  'description' : '{name} {version} ({built})'.format(
+                  name = 'Collab text editor server', version = '0.0.1', built = '22/11/16'
   )
 }
 
