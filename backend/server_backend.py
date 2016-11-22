@@ -79,7 +79,7 @@ class server:
           break
         unp_init_data = common.ctrl_struct.unpack(init_data)
         init_ctrl, init_pl = unp_init_data
-        logging.debug("Received data: %s" % str(unp_init_data))
+        logging.debug("Received '%d' bytes of data" % len(init_data))
 
         if init_ctrl == common.CTRL_REQ_NEW_ID:
           # we have a new user; let's give him/her a new ID
@@ -126,7 +126,6 @@ class server:
       # exist (or in future cases, not made public for editing), dismiss the request.
       # Long story short, expect a file name from the user.
 
-      #TODO: create a manager class that deals with file handlers and editing
       logging.debug("Waiting user's #ID = '%d' request to open/create a file" % usr_id)
       init_args = None
       fn = sock.recv(common.BUF_SZ) #common.recv(sock)
@@ -176,7 +175,7 @@ class server:
             client_manager.KEY_CREATEFILE : False
           }
 
-      logging.debug("Got something")
+      logging.debug("Assembled the arguments for the client manager")
 
       if init_args is None:
         logging.error("Unauthenticated user?!")

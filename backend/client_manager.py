@@ -69,7 +69,14 @@ class client_manager_thread(threading.Thread):
                         self.parent_manager.clients[r][client_manager.KEY_USERID])
 
           # let's parse the sent message and apply it on our file
-          self.parent_manager.file_manager.edit(*common.unmarshall(msg))
+          try:
+            ret_edit = self.parent_manager.file_manager.edit(*common.unmarshall(msg))
+            if not ret_edit:
+              logging.debug("Encountered an error while editing the file")
+              continue
+          except ValueError as err:
+            logging.debug("Encountered some kind of error in unmarshalling: %s" % err)
+            continue
 
           # put into a queue
           for s in sockets:

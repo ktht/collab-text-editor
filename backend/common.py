@@ -65,22 +65,41 @@ def recv(sock, buf_sz = BUF_SZ):
       break
   return msg
 
-def marshall(line_no, action, payload): # payload must not contain any newline characters
-  # client_id
-  assert(type(line_no) == int and type(action) == int and type(payload) == str)
-  assert(line_no >= 0)
-  assert(action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT))
+def marshall(line_no, action, payload):
+  '''Marshalls the edit command into string meant for sendng across TCP pipe
+  :param line_no: int, Line number to be edited
+  :param action:  int, Edit control code
+                       (valid values: EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT)
+  :param payload: string, New line (use an empty string if the edit control code is EDIT_DELETE)
+  :return: string, The marshalled message
+  '''
+  if not (type(line_no) == int and type(action) == int and type(payload) == str):
+    raise ValueError("Invalid input types")
+  if not (line_no >= 0):
+    raise ValueError("Invalid row number (must be a positive integer)")
+  if not (action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT)):
+    raise ValueError("Invalid edit control code")
   msg = DELIM.join([str(line_no), str(action), payload])
   return msg
 
 def unmarshall(msg):
-  assert(type(msg) == str)
+  '''Unmarshalls a given string which is expected to have the xzme format as in marshall() function
+  :param msg: string, The message to be unmarshalled
+  :return: (int, int, string), The line number to be edited,
+                               the edit control code (valid values: EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT)
+                               new line
+  '''
+  if not (type(msg) == str):
+    raise ValueError("Wrong type to be unmarshalled (must be a string)")
   split = msg.split(DELIM)
-  assert(len(split) == 3)
+  if not (len(split) == 3):
+    raise ValueError("Invalid number of elements marshalled into the message (must be 3)")
   line_no, action, payload = int(split[0]), int(split[1]), split[2]
 
-  assert (line_no >= 0)
-  assert(action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT))
+  if not (line_no >= 0):
+    raise ValueError("Invalid row number (must be a positive integer)")
+  if not (action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT)):
+    raise ValueError("Invalid edit control code")
   return line_no, action, payload
 
 def synchronized(lock_name):

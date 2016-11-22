@@ -1,6 +1,4 @@
-import common, logging, socket, struct
-
-#TODO: COMMENT ME
+import common, logging, socket, struct, threading
 
 class client:
 
@@ -17,6 +15,7 @@ class client:
     self.fn        = None
     self.files     = []
     self.queue_incoming = None
+    self.is_running = True
 
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     logging.debug('Created client socket, desciptor %d' % self.sock.fileno())
@@ -26,8 +25,9 @@ class client:
     :return: This instance
     '''
     try:
+      logging.debug("Connecting to server %s:%d" % self.addr_port)
       self.sock.connect(self.addr_port)
-      logging.debug('Connecting via %s:%d' % self.sock.getsockname())
+      logging.debug('Connected via %s:%d' % self.sock.getsockname())
       self.sock.settimeout(common.TCP_CLIENT_TIMEOUT)                     # immediately blocks
       logging.debug('Set the timeout to %ds' % common.TCP_CLIENT_TIMEOUT)
       self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE,  common.TCP_CLIENT_KEEPALIVE)
@@ -165,6 +165,15 @@ class client:
       else:
         logging.error('Server was not happy')
         raise RuntimeError('Server was not happy b/c it sent us a wrong control code')
+
+      # now boot up a new thread which listens to incoming edit control messages sent by the server
+      # this thread should die only if
+      #  a) self.is_running is set to False; or if
+      #  b) the main thread exits (we daemonize the thread)
+      receiving_thread = threading.Thread(target = self.recv_changes)
+      receiving_thread.setDaemon(True)
+      receiving_thread.start()
+
     except socket.timeout as err:
       logging.debug('Socket timeout error: %s' % err)
       return None
@@ -204,7 +213,6 @@ class client:
       logging.error("You haven't requested any files from the server. SMH")
       return False
     msg = common.marshall(line_no, action, payload)
-    logging.debug("Sending message: '%s'" % msg)
     try:
       logging.debug("Send the changes made in file '%s' to the server" % self.fn)
       self.sock.sendall(msg)
@@ -227,3 +235,34 @@ class client:
       logging.debug('Unknown error: %s' % err)
       return False
     return True
+
+  def recv_changes(self):
+    '''Receive messages from the server and put them into a queue
+    :return: None (only if there was an interrupt or the variable `self.is_running' is set to False;
+                   otherwise the receiving loop is always running regardless of caught exceptions)
+    '''
+    logging.debug('Starting to receive messages from the server')
+    while self.is_running:
+      try:
+        msg = self.sock.recv(common.BUF_SZ)
+        unmarshalled_msg = common.unmarshall(msg)
+        self.queue_incoming.append(unmarshalled_msg)
+        logging.debug('Received a message from the server; pushed it into a queue')
+      except socket.timeout as err:
+        logging.debug('Socket timeout error: %s' % err)
+        continue
+      except socket.error as err:
+        logging.debug('Socket error: %s' % err)
+        continue
+      except ValueError as err:
+        logging.debug('Unmarshalling (?) error: %s' % err)
+        continue
+      except RuntimeError as err:
+        logging.debug('Runtime error: %s' % err)
+        continue
+      except KeyboardInterrupt:
+        logging.debug('Caught SIGINT')
+        return
+      except BaseException as err:
+        logging.debug('Unknown error: %s' % err)
+        continue
