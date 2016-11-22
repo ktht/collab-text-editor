@@ -1,5 +1,5 @@
 import Tkinter as tk
-import sys, tkFileDialog, os, Queue, threading, time, random
+import sys, tkFileDialog, os, Queue, threading, time, random, socket
 
 import backend.common
 from backend.client_backend import client
@@ -8,11 +8,11 @@ from tkFileDialog   import asksaveasfilename
 
 from tkMessageBox import askokcancel
 
-queue_recv = Queue.Queue()
+queue_send2srvr = Queue.Queue()
 
 class TextEdGUI(tk.Tk):
 
-    def __init__(self, queue_send, endCommand, *args, **kwargs):
+    def __init__(self, queue_recv_srvr, endCommand, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         tk.Tk.title(self, "Collab Text Editor")
         tk.Tk.geometry(self, '580x410')
@@ -30,7 +30,7 @@ class TextEdGUI(tk.Tk):
 
         self.frames = {}
 
-        self.queue_send = queue_send
+        self.queue_recv_srvr = queue_recv_srvr
 
         for F in (ConnectPage, SelectorPage, EditorPage):
             frame = F(container, self)
@@ -61,10 +61,9 @@ class TextEdGUI(tk.Tk):
 
 
     def statusbar(self, container): # **** Status bar stuff ****
-
-        status = tk.Label(container, text="Connected clients:", bd=1,
+        self.status = tk.Label(container, text="Client ID: ", bd=1,
                           relief=tk.SUNKEN, anchor=tk.W)
-        status.grid(row=3, column=0, sticky="sw")
+        self.status.grid(row=3, column=0, sticky="sw")
 
 
     def show_frame(self, cont):
@@ -76,9 +75,9 @@ class TextEdGUI(tk.Tk):
 
     def processIncoming(self):
         self.get_page("EditorPage").updateQueue()
-        while self.queue_send.qsize():
+        while self.queue_recv_srvr.qsize():
             try:
-                msg = self.queue_send.get(0)
+                msg = self.queue_recv_srvr.get(0)
                 #print(self.get_page("ConnectPage").entryText.get())
                 #self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
                 #print msg
@@ -95,6 +94,9 @@ class ConnectPage(tk.Frame):
 
         label = tk.Label(self, text="Connect Page", font=("Verdana", 12))
         label.grid(pady = 10, padx = 10,row=0, column=0, sticky="new")
+
+        self.label3 = tk.Label(self, text="", font=("Verdana", 12))
+        self.label3.grid(pady=10, padx=10, row=5, column=1, sticky="ew")
 
         #button1 = tk.Button(self, text="Connect",
         #                    command=lambda: controller.show_frame(SelectorPage))
@@ -118,6 +120,35 @@ class ConnectPage(tk.Frame):
         self.entryText3.set(backend.common.SERVER_PORT_DEFAULT)
 
     def funcs(self, contr):
+        try:
+            if self.entryText.get() == "Creating new ID!":
+                pass
+            else:
+                if not self.entryText.get().isdigit():
+                    popupmsg("ID needs to be an integer!")
+                    return None
+                if len(self.entryText.get()) > 4:
+                    popupmsg("Max length is 4 digits!")
+                    return None
+        except Exception as err:
+            print(err)
+
+        try:
+            socket.inet_aton(self.entryText2.get())
+        except socket.error:
+            popupmsg("Not IPv4 address!")
+
+        try:
+            port_nr = self.entryText3.get()
+            if not port_nr.isdigit():
+                popupmsg("Port number needs to be an integer!")
+                return None
+            port_range = (2 ** 10, 2 ** 16 - 1)
+            if not (port_range[0] <= int(port_nr) <= port_range[1]):
+                popupmsg("Port number out of range!")
+        except Exception as err:
+            print(err)
+
         contr.show_frame(SelectorPage)
         client1.e.set()
 
@@ -137,9 +168,9 @@ class SelectorPage(tk.Frame):
         tk.Button(self, text='Select', command=lambda: controller.show_frame(EditorPage)
                   ).grid(row=2, column=2, padx=15, pady=5)
 
-        button3 = tk.Button(self, text="Disconnect",
-                            command=lambda: controller.show_frame(ConnectPage))
-        button3.grid(row=4, column=1)
+        #button3 = tk.Button(self, text="Disconnect",
+        #                    command=lambda: controller.show_frame(ConnectPage))
+        #button3.grid(row=4, column=1)
 
         button4 = tk.Button(self, text="Select from list",
                             command= self.select_Listelem)
@@ -217,7 +248,7 @@ class EditorPage(tk.Frame):
             while len(self.text_muudatused) > 0:
                 try:
                     rida = self.text_muudatused.pop()
-                    queue_recv.put(str(str(rida) + ":" + self.text.get(str(rida) + ".0", str(
+                    queue_send2srvr.put(str(str(rida) + ":" + self.text.get(str(rida) + ".0", str(
                         rida + 1) + ".0").rstrip()))
                 except UnicodeEncodeError:
                     print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
@@ -255,31 +286,48 @@ def popupmsg(argument):
 class ThreadedClient(threading.Thread):
 
     def __init__(self):
-        self.queue_send = Queue.Queue()
+        self.queue_recv_srvr = Queue.Queue()
 
-        self.gui = TextEdGUI(self.queue_send, self.endApplication)
+        self.gui = TextEdGUI(self.queue_recv_srvr, self.endApplication)
         #self.gui.get_page("EditorPage").text.insert("1.0","Hello, world!")
 
         self.running = 1
         self.e = threading.Event()
-        self.thread1 = threading.Thread(target=self.workerThread1)
-        self.thread2 = threading.Thread(target=self.workerThread2)
+        self.thread1 = threading.Thread(target=self.recv_srvr_Thread)
+        self.thread2 = threading.Thread(target=self.send2srvr_Thread)
         self.thread3 = threading.Thread(target = self.clientThread)
-
+        self.thread3.setDaemon(True)
+        #self.thread2.setDaemon(True)
+        self.create_new_ID = False
         self.thread1.start()
         self.thread2.start()
         self.thread3.start()
 
         self.periodicCall() # Periodic call to check if the queue contains something
 
-        self.create_new_ID = False
+
+
+        if not os.path.exists(backend.common.TMP_DIR_CLIENT):
+            os.makedirs(backend.common.TMP_DIR_CLIENT)
+
         try:
-            with open(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'), 'r') as f:
+            with open(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'), 'r+') as f:
                 self.ID_from_file = f.readline()
                 self.gui.get_page("ConnectPage").entryText.set(str(self.ID_from_file).rstrip())
+                if os.stat(str(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'))).st_size == 0:
+                    self.create_new_ID = True
+                    self.gui.get_page("ConnectPage").label3.config(
+                        text='Hello new user, we will create a new ID for you '
+                                                            '\n when you connect!')
+                    self.gui.get_page("ConnectPage").entryText.set("Creating new ID!")
+                else:
+                    self.gui.get_page("ConnectPage").label3.config(
+                        text='Hello existing user!')
         except IOError:
-            self.gui.get_page("ConnectPage").entryText.set("New user")
+            self.gui.get_page("ConnectPage").entryText.set("Creating new ID!")
             self.create_new_ID = True
+            self.gui.get_page("ConnectPage").label3.config(text='Hello new user, we will create a new ID for you '
+                                                                '\n when you connect!')
             print("File for user ID was not found!")
 
     def periodicCall(self):
@@ -288,19 +336,19 @@ class ThreadedClient(threading.Thread):
             sys.exit(1)
         self.gui.after(200, self.periodicCall) # Check every 200 ms if there is something new in the queue.
 
-    def workerThread1(self):
+    def recv_srvr_Thread(self):
         while self.running:
             time.sleep(random.random() * 1.5)
             msg = random.random()
-            self.queue_send.put(msg)
+            self.queue_recv_srvr.put(msg)
 
-    def workerThread2(self):
+    def send2srvr_Thread(self):
         """Handle all messages currently in the queue, if any."""
         while self.running:
             time.sleep(0.2)
-            while queue_recv.qsize():
+            while queue_send2srvr.qsize():
                 try:
-                    msg = queue_recv.get(0)
+                    msg = queue_send2srvr.get(0)
                     print msg
                 except Queue.Empty:
                     pass
@@ -312,18 +360,31 @@ class ThreadedClient(threading.Thread):
         server_IP  = self.gui.get_page("ConnectPage").entryText2.get()
         server_PORT = int(self.gui.get_page("ConnectPage").entryText3.get())
 
+        if not usr_ID.isdigit():
+            usr_ID = 1
+
         with client(server_IP, server_PORT, backend.common.TMP_DIR_SERVER, int(usr_ID)) as c:
             print("Server connected")
             if self.create_new_ID:
                 client_id = c.req_id()
+                try:
+                    with open(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'), 'w+') as f:
+                        print(client_id)
+                        f.write(str(client_id))
+                except IOError:
+                    print("File IOError!")
             else:
                 client_id = usr_ID
 
+            self.gui.status.config(text='Client ID: '+str(client_id))
+
             client_files = c.req_session()
             self.gui.get_page("SelectorPage").listBox.delete(0, tk.END)
-            for i in client_files:
-                self.gui.get_page("SelectorPage").listBox.insert(tk.END, i)
-            file_contents = c.req_file('%d:test.txt' % 4)
+            if client_files:
+                print(client_files)
+                for i in client_files:
+                    self.gui.get_page("SelectorPage").listBox.insert(tk.END, i)
+                file_contents = c.req_file('%d:test.txt' % 4)
             #print(client_files)
 
             while(self.running):
@@ -336,6 +397,11 @@ class ThreadedClient(threading.Thread):
 if __name__ == '__main__':
     client1 = ThreadedClient()
     client1.gui.mainloop()
+
+
+# GUI insert keskele
+# Cliendi ja GUI suhtlus yle Queue
+# Req file tests
 
 
 # Klient yritab yhenduda serveriga vaartuste abil, mis on kuvatud Connect Page lehel
