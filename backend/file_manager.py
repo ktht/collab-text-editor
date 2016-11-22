@@ -3,6 +3,12 @@ import os, common, logging, threading
 class file_manager:
 
   def __init__(self, fn):
+    '''Initializes the file_manager instance
+    :param fn: string, FileName, which consist of the owner and the file name itself
+
+    The client's files are stored in the directory
+      <default server directory>/<file creator's ID>/<file name>
+    '''
     self.fn = os.path.join(common.TMP_DIR_SERVER, fn.replace(common.DELIM_ID_FILE, os.path.sep))
     self.fd = None
     self.lock = threading.Lock()
@@ -53,13 +59,17 @@ class file_manager:
       self.fd.close()
 
   def str(self):
+    '''Get file contents as a string
+    :return: string, The file contents
+    '''
     return '\n'.join(self.lines.values())
 
   def edit(self, line_no, action, new_line = ''):
     '''Edits a line in the file represented by a dictionary
     :param line_no:  int, The line nr to be edited (line numbers start from 0)
-    :param new_line: string, The replacement line (ignored if `replace' is set to False)
-    :param replace:  bool, Use `True' if you want to replace the line, `False' otherwise
+    :param action:  int, valid values are common.EDIT_REPLACE, common.EDIT_INSERT and common.EDIT_DELETE
+    :param new_line: string, The replacement line (ignored if `action' is set to common.EDIT_DELETE)
+
     :return: True, if the file modification was successful
              False, if the method encountered inconsistencies
                     (i.e. the line number requested was out of bounds, that is it exceeded the total
@@ -79,14 +89,17 @@ class file_manager:
           self.nof_lines += 1
       elif action == common.EDIT_INSERT:
         if line_no in self.lines:
+          # shift all lines by one row below the line which was inserted
           for line_no_new in range(self.nof_lines, line_no, -1):
             self.lines[line_no_new] = self.lines[line_no_new - 1]
         self.lines[line_no] = new_line
+        self.nof_lines += 1
       elif action == common.EDIT_DELETE:
         del self.lines[line_no]
         line_no_next = line_no + 1
         if line_no_next in self.lines:
           for line_no_new in range(line_no_next, self.nof_lines):
+            # shift all lines by one row above the line which was deleted
             self.lines[line_no_new - 1] = self.lines[line_no_new]
         del self.lines[self.nof_lines - 1]
         self.nof_lines -= 1

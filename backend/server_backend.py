@@ -14,6 +14,11 @@ class server:
   tcp_client_queue = 10
 
   def __init__(self, addr, port, directory):
+    '''Initializes the server instance
+    :param addr:      string, Server address
+    :param port:      int, Server port
+    :param directory: string, Path in which the database file and clients' files are stored
+    '''
     logging.debug('Starting %s' % metainfo['description'])
 
     self.addr_port = (addr, port)
@@ -26,6 +31,9 @@ class server:
     self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
   def __enter__(self):
+    '''Needed in with-as statements
+    :return: This instance
+    '''
     if not os.path.exists(self.directory):
       try:
         logging.debug('Directory %s does not exist, creating one' % self.directory)
@@ -48,6 +56,9 @@ class server:
     return self
 
   def __exit__(self, exc_type, exc_val, exc_tb):
+    '''Needed in with-as statements
+    :return: None
+    '''
     logging.debug('')
     common.close_socket(self.socket)
 
@@ -106,14 +117,14 @@ class server:
         logging.debug('Could not initate the session, abort')
         raise RuntimeError("Session initialization error")
 
-      # wait for the user to respond with a request to either open an existing file
-      # or to create a new file; an existing file may be also be owned by another user, which
+      # Wait for the user to respond with a request to either open an existing file
+      # or to create a new file. An existing file may be also be owned by another user, which
       # is identified by the user and the file name itself, e.g.
       #     user_id:file_name
-      # (otherwise there would be no way to collaboratively edit any files)
-      # if the user_id is different from initiator of the session, and the file does not
-      # exist (or in future cases, not made public for editing), dismiss the request
-      # long story short, expect a file name from the user
+      # (otherwise there would be no way to collaboratively edit any files).
+      # If the `user_id' is different from initiator of the session, and the file does not
+      # exist (or in future cases, not made public for editing), dismiss the request.
+      # Long story short, expect a file name from the user.
 
       #TODO: create a manager class that deals with file handlers and editing
       logging.debug("Waiting user's #ID = '%d' request to open/create a file" % usr_id)
@@ -209,6 +220,9 @@ class server:
 
 
   def listen(self):
+    '''Idle mode for the server (waits for incoming connections to the client)
+    :return: None
+    '''
     logging.debug('Setting the client queue to %d' % self.tcp_client_queue)
     self.socket.listen(self.tcp_client_queue)
 

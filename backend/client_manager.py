@@ -8,6 +8,10 @@ class client_manager:
   KEY_CREATEFILE = 'create_file'
 
   def __init__(self, fn):
+    '''Initializes client manager class which basically handles incoming clients
+       There must be one such manager per file (but there may be multiple clients which edit the file at the same time)
+    :param fn:
+    '''
     self.file_manager = file_manager.file_manager(fn)
     self.clients = {}
     self.outputs = {}
@@ -15,11 +19,18 @@ class client_manager:
     self.client_manager_thread_instance = client_manager_thread(self) # shall we daemonize it?
     atexit.register(self.file_manager.close) # shameless hack :)
 
-  @common.synchronized("lock") # lock this guy b/c we want to open one file and create one thread at only once
+  @common.synchronized("lock")
   def add_client(self, client_metadata):
+    '''Adds a new client which takes part b/w the client-server communication
+    :param client_metadata: dict, holds basic information about the client
+    :return: None
+
+     Lock this guy b/c we want to open one file and create one thread at only once
+     @see client_manager_thread
+    '''
     self.clients[client_metadata[client_manager.KEY_SOCKET]] = client_metadata
 
-    # screw it, let's send the file to the client
+    # let's send the file to the client
     # this function will be called in a separate thread dedicated to a client anyways
     if not client_metadata[client_manager.KEY_CREATEFILE]:
       logging.debug('Reading an existing file')
@@ -36,6 +47,9 @@ class client_manager:
 class client_manager_thread(threading.Thread):
 
   def __init__(self, parent_manager):
+    '''The thread handling communication about file changes b/w the server and the clients
+    :param parent_manager: client_manager instance, The manager class holding information about incoming clients
+    '''
     threading.Thread.__init__(self)
     self.parent_manager = parent_manager
 
