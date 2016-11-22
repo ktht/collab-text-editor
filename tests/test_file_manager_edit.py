@@ -17,11 +17,13 @@ if __name__ == '__main__':
   fm.edit(0, "Replaced line")
   fm.edit(0, "First line")
   fm.edit(1, "Second line")
+  fm.edit(2, "Third line")
+  fm.edit(1, "", False)
 
   logging.info('File contents:')
   contents = fm.str()
   print contents
 
-  assert(contents == "First line\nSecond line")
+  assert(contents == "First line\nThird line")
 
   logging.info('Fin')

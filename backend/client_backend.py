@@ -117,18 +117,26 @@ class client:
       logging.debug("Requesting to open file '%s' by server" % fn)
       self.sock.sendall(fn)
       p_new_file_resp = self.sock.recv(common.ctrl_struct.size)  # common.recv(self.sock)
+      if not p_new_file_resp:
+        logging.debug("Server was not happy")
+        raise RuntimeError("Server was not happy b/c it didn't send us anything")
       new_file_code, _ = common.ctrl_struct.unpack(p_new_file_resp)
       if new_file_code == common.CTRL_OK_CREATE_FILE:
         logging.debug('Server had to create a new file, which is empty anyways')
       elif new_file_code == common.CTRL_OK_READ_FILE:
         logging.debug("Server has to serve the file for us; let's read it")
         # read from socket
-        while True:
-          resp = self.sock.recv(common.BUF_SZ)
-          if resp:
-            file_contents += resp
-          else:
-            break
+        resp = self.sock.recv(common.BUF_SZ)
+        if not resp:
+          logging.error("Server was not happy")
+          raise RuntimeError("Server was not happy b/c it didn't send us anything")
+        logging.debug("RESPONSE: %s" % str(resp))
+        resp_code, file_contents = resp.split(common.DELIM)
+        if int(resp_code) == common.CTRL_OK:
+          logging.debug('Received %d bytes of the file' % len(file_contents))
+        else:
+          logging.error('Server was not happy')
+          raise RuntimeError('Server was not happy b/c it sent us a wrong control code')
       else:
         logging.error('Server was not happy')
         raise RuntimeError('Server was not happy b/c it sent us a wrong control code')

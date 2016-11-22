@@ -1,4 +1,4 @@
-import threading, common, os, file_manager
+import threading, common, logging, file_manager, atexit
 
 class client_manager:
 
@@ -7,6 +7,7 @@ class client_manager:
     self.clients = []
     self.lock = threading.Lock()
     self.client_manager_thread_instance = client_manager_thread(self) # shall we daemonize it?
+    atexit.register(self.file_manager.close) # shameless hack :)
 
   @common.synchronized("lock") # lock this guy b/c we want to open one file and create one thread at only once
   def add_client(self, client_metadata):
@@ -15,9 +16,11 @@ class client_manager:
     # screw it, let's send the file to the client
     # this function will be called in a separate thread dedicated to a client anyways
     if not client_metadata['create_file']:
+      logging.debug('Reading an existing file')
       # send the whole contents of the file to the client
-      for chunk in self.file_manager.chunks():
-        client_metadata['socket'].sendall(chunk) # blocks!
+      file_contents = self.file_manager.str()
+      msg = str(common.CTRL_OK) + common.DELIM + file_contents
+      client_metadata['socket'].sendall(msg)
 
     if not self.client_manager_thread_instance.isAlive():
       # this means that the thread handling the communication b/w the server and clients has not even been started yet

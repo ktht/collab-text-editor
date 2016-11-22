@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
   test_server_thread = threading.Thread(
     target = test_server,
-    args = (common.SERVER_INET_ADDR_DEFAULT, common.SERVER_PORT_DEFAULT, common.TMP_DIR_SERVER)
+    args   = (common.SERVER_INET_ADDR_DEFAULT, common.SERVER_PORT_DEFAULT, common.TMP_DIR_SERVER)
   )
   test_server_thread.setDaemon(True) # dies with the main thread
   test_server_thread.start()
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
   test_client_thread = threading.Thread(
     target = test_client,
-    args = (common.SERVER_INET_ADDR_DEFAULT, common.SERVER_PORT_DEFAULT, common.TMP_DIR_CLIENT)
+    args   = (common.SERVER_INET_ADDR_DEFAULT, common.SERVER_PORT_DEFAULT, common.TMP_DIR_CLIENT)
   )
   test_client_thread.start()
   test_client_thread.join()

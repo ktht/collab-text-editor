@@ -2,9 +2,6 @@ import os, common, logging, threading
 
 class file_manager:
 
-  #TODO: map the file onto a dict and perform the change on dict only
-  #      then create another thread that periodically (or upon some trigger) will save the dict to the actual file
-
   def __init__(self, fn):
     self.fn = os.path.join(common.TMP_DIR_SERVER, fn.replace(common.DELIM_ID_FILE, os.path.sep))
     self.fd = None
@@ -27,9 +24,16 @@ class file_manager:
 
     self.fd = open(self.fn, 'w')
 
-  def __del__(self):
+  def __update__(self):
+    self.fd.seek(0)
+    self.fd.writelines(self.str())
+    self.fd.truncate()
+
+  def close(self):
     # gracefully close the file
     if not self.fd.closed:
+      # write the changes back to the file
+      self.__update__()
       # this check is valid for current process only
       # but since we're using threading module instead of multiprocessing, this is not an issue
       self.fd.close()
@@ -37,13 +41,18 @@ class file_manager:
   def str(self):
     return '\n'.join(self.lines.values())
 
-  def chunks(self, chunk_size = common.MAX_PDU_SZ):
-    s = self.str()
-    for i in range(0, len(s), chunk_size):
-      yield s[i:i + chunk_size]
-
   @common.synchronized("lock")
-  def edit(self, line_no, new_line):
+  def edit(self, line_no, new_line = '', replace = True):
+    '''Edits a line in the file represented by a dictionary
+    :param line_no:  int, The line nr to be edited (line numbers start from 0)
+    :param new_line: string, The replacement line (ignored if `replace' is set to False)
+    :param replace:  bool, Use `True' if you want to replace the line, `False' otherwise
+    :return: True, if the file modification was successful
+             False, if the method encountered inconsistencies
+                    (i.e. the line number requested was out of bounds, that is it exceeded the total
+                     number of lines in the file)
+    Note that if `line_no' is equal to the number of lines in the file, the line will be appended at the end of file
+    '''
     # lock this guy just in case multiple threads edit the file
     # this will never happen, though, b/c there is one thread per file anyways
     # but safety first
@@ -51,18 +60,26 @@ class file_manager:
     # edits n-th line in place
     logging.debug("Editing %d-th line in file '%s'" % (line_no, self.fn))
     if line_no <= self.nof_lines:
-      # replace an existing line or add a new line
-      self.lines[line_no] = new_line
-      if line_no == self.nof_lines:
-        # we added a new line to the file
-        self.nof_lines += 1
+      if replace:
+        # replace an existing line or add a new line
+        self.lines[line_no] = new_line
+        if line_no == self.nof_lines:
+          # we added a new line to the file
+          self.nof_lines += 1
+      else:
+        del self.lines[line_no]
+        line_no_next = line_no + 1
+        if line_no_next in self.lines:
+          for line_no_new in range(line_no_next, self.nof_lines):
+            self.lines[line_no_new - 1] = self.lines[line_no_new]
+        del self.lines[self.nof_lines - 1]
+        self.nof_lines -= 1
     else:
       logging.debug('Line number out of bounds!')
       return False
 
-    self.fd.seek(0)
-    self.fd.writelines(self.str())
-    self.fd.truncate()
+    # ideally, this should be wrapped into try-except block
+    self.__update__()
 
     logging.debug('Successfully updated the file')
     return True

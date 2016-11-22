@@ -125,6 +125,10 @@ class server:
         logging.debug("User #ID = '%d' requested file '%s' from user #ID = '%d'" % (usr_id, fn_loc, fn_id))
         # request the other user's files
         othr_files = self.db.get_user_files(fn_id)
+        if othr_files is None:
+          logging.debug("User #ID = '%d' requested a file from the user #ID = '%d' which does not exist" %
+                        (usr_id, fn_id))
+          raise RuntimeError("Invalid request to open a file owned by a non-existen user")
         if fn not in othr_files:
           logging.debug("User #ID = '%d' requested file '%s' from user #ID = '%d' which does not exist; abort" %
                         (usr_id, fn_loc, fn_id))
