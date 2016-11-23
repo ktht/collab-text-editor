@@ -18,7 +18,7 @@ queue_send2srvr = Queue.Queue()
 
 class TextEdGUI(tk.Tk):
 
-    def __init__(self, queue_recv_srvr, endCommand, *args, **kwargs):
+    def __init__(self, endCommand, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         tk.Tk.title(self, "Collab Text Editor")
         tk.Tk.geometry(self, '580x410')
@@ -35,8 +35,6 @@ class TextEdGUI(tk.Tk):
         self.bind('<Escape>',lambda x: endCommand()) # Make Esc also exit the program
 
         self.frames = {}
-
-        self.queue_recv_srvr = queue_recv_srvr
 
         for F in (ConnectPage, SelectorPage, EditorPage):
             frame = F(container, self)
@@ -299,23 +297,19 @@ def popupmsg(argument):
 class ThreadedClient(threading.Thread):
 
     def __init__(self):
-        self.queue_recv_srvr = Queue.Queue()
-
         self.test_file = 'test2.txt'
         self.test_text = 'This is the long text'
 
-        self.gui = TextEdGUI(self.queue_recv_srvr, self.endApplication)
+        self.gui = TextEdGUI( self.endApplication)
         #self.gui.get_page("EditorPage").text.insert("1.0","Hello, world!")
 
         self.running = 1
         self.e = threading.Event()
-        self.thread1 = threading.Thread(target=self.recv_srvr_Thread)
-        self.thread2 = threading.Thread(target=self.send2srvr_Thread)
-        self.thread3 = threading.Thread(target = self.clientThread)
+        self.thread2 = threading.Thread(target=self.send2srvr_Thread, name="clientSenderThread")
+        self.thread3 = threading.Thread(target = self.clientThread, name="clientThread")
         self.thread3.setDaemon(True)
         #self.thread2.setDaemon(True)
         self.create_new_ID = False
-        self.thread1.start()
         self.thread2.start()
         self.thread3.start()
 
@@ -352,11 +346,6 @@ class ThreadedClient(threading.Thread):
             sys.exit(1)
         self.gui.after(200, self.periodicCall) # Check every 200 ms if there is something new in the queue.
 
-    def recv_srvr_Thread(self):
-        while self.running:
-            time.sleep(random.random() * 1.5)
-            #msg = random.random()
-            #self.queue_recv_srvr.put(msg)
 
     def send2srvr_Thread(self):
         """Handle all messages currently in the queue, if any."""
@@ -406,8 +395,6 @@ class ThreadedClient(threading.Thread):
             file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(client_id), fname.split(':')[1]]))
 
             client.queue_incoming.put(file_contents)
-            #self.queue_recv_srvr.put(file_contents)
-
 
 
 
