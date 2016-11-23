@@ -1,4 +1,4 @@
-import threading, common, logging, file_manager, atexit, select, time
+import threading, common, logging, file_manager, select, server_backend
 
 class client_manager:
 
@@ -15,13 +15,13 @@ class client_manager:
        There must be one such manager per file (but there may be multiple clients which edit the file at the same time)
     :param fn:
     '''
+    self.fn = fn
     self.file_manager = file_manager.file_manager(fn)
     self.clients = {}
     self.outputs = {}
     self.lock = threading.Lock()
     self.client_manager_thread_instance = client_manager_thread(self) # shall we daemonize it?
     self.client_manager_thread_instance.setName('ClientManagerThread-%s' % fn)
-    atexit.register(self.file_manager.close) # shameless hack :)
 
   @common.synchronized("lock")
   def add_client(self, client_metadata):
@@ -68,7 +68,7 @@ class client_manager_thread(threading.Thread):
 
       for r in readable:
         msg = r.recv(common.BUF_SZ)
-        if msg:
+        if msg and msg != common.DELIM:
           logging.debug("Received message from client #ID = '%d'" %
                         self.parent_manager.clients[r][client_manager.KEY_USERID])
 
@@ -94,7 +94,7 @@ class client_manager_thread(threading.Thread):
           logging.debug("Connection dropped with client #ID = '%d'?" %
                         self.parent_manager.clients[r][client_manager.KEY_USERID])
           if r in self.parent_manager.outputs:
-            self.parent_manager.outputs.remove(r)
+            del self.parent_manager.outputs[r]
           del self.parent_manager.clients[r]
           r.close()
       for w in writable:
@@ -110,3 +110,7 @@ class client_manager_thread(threading.Thread):
           del self.parent_manager.outputs[e]
         if e in self.parent_manager.clients:
           del self.parent_manager.clients[e]
+
+    logging.debug("No clients left, cleaning up")
+    self.parent_manager.file_manager.close()
+    del server_backend.server.managers[self.parent_manager.fn]

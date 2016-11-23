@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, time
 sys.path.append(os.path.join(os.path.dirname(__file__), '../backend'))
 
 import logging, threading, common, time
@@ -17,13 +17,17 @@ def test_client(*args):
     logging.info("Client files: %s" % str(client_files))
     file_contents = c.req_file(common.DELIM_ID_FILE.join([str(client_id), test_file]))
     logging.info("Current file contents: '%s'" % file_contents)
+    time.sleep(1)
 
     for i in range(4):
-      ret_changes = c.send_changes(0, common.EDIT_REPLACE, test_text)
+      ret_changes = c.send_changes(0, common.EDIT_REPLACE, '%s %d' % (test_text, i))
       if ret_changes:
         logging.info("WOOO, SUCCESS!")
       else:
         logging.error("ERROR!")
+      time.sleep(0.5)
+
+  time.sleep(1)
 
 def test_server(*args):
   with server(*args) as s:

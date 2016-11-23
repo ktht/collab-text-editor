@@ -11,7 +11,9 @@ metainfo = {
 #TODO: how to clean up the dict of client managers?
 
 class server:
+
   tcp_client_queue = 10
+  managers = {}
 
   def __init__(self, addr, port, directory):
     '''Initializes the server instance
@@ -24,7 +26,6 @@ class server:
     self.addr_port = (addr, port)
     self.directory = os.path.abspath(directory)
     self.db = None
-    self.managers = {} # dict of client managers
 
     self.socket   = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -205,9 +206,9 @@ class server:
       # the client awaits more data, if the control code sent is CTRL_OK_READ_FILE
 
       if fn not in self.managers:
-        self.managers[fn] = client_manager(fn)
+        server.managers[fn] = client_manager(fn)
       # may start a new thread for the file if not already running
-      self.managers[fn].add_client(init_args)
+      server.managers[fn].add_client(init_args)
 
       logging.debug('Finished the handshake')
 

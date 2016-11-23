@@ -1,6 +1,7 @@
-import common, logging, socket, struct, threading, Queue, time, random
+import common, logging, socket, struct, threading, Queue
 
 class client:
+
   queue_incoming = Queue.Queue()
 
   def __init__(self, addr, port, dirname, client_id = None):
@@ -43,6 +44,8 @@ class client:
     '''Needed in with-as statements
     :return: None
     '''
+    self.is_running = False
+    self.sock.sendall(common.DELIM)
     common.close_socket(self.sock)
 
 
@@ -155,7 +158,6 @@ class client:
         if not resp:
           logging.error("Server was not happy")
           raise RuntimeError("Server was not happy b/c it didn't send us anything")
-        logging.debug("RESPONSE: %s" % str(resp))
         resp_code, file_contents = resp.split(common.DELIM)
         if int(resp_code) == common.CTRL_OK:
           logging.debug('Received %d bytes of the file' % len(file_contents))
