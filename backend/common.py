@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging, struct, os, functools
+import logging, struct, os, functools, socket
 
 SERVER_PORT_DEFAULT      = 7777            # default port
 SERVER_INET_ADDR_DEFAULT = '127.0.0.1'     # localhost
@@ -24,9 +24,11 @@ TMP_DIR_SERVER = os.path.join(TMP_DIR, 'server')
 TMP_DIR_CLIENT = os.path.join(TMP_DIR, 'client')
 TMP_DIR_TEST   = os.path.join(TMP_DIR, 'test')
 
-DELIM         = '\0'
-DELIM_LONG    = '\0' * 3
-DELIM_ID_FILE = ':'
+DELIM           = '\0'
+DELIM_LONG      = DELIM * 3
+DELIM_LONG_LONG = DELIM * 5
+DELIM_ID_FILE   = ':'
+MSG_TERMINATOR  = DELIM_LONG_LONG
 
 EDIT_DELETE  = int(0x01 << 0)
 EDIT_REPLACE = int(0x01 << 1)
@@ -61,13 +63,23 @@ def read_chunks(fo, chunk_size = MAX_PDU_SZ):
 
 def recv(sock, buf_sz = BUF_SZ):
   msg = ''
-  while True:
-    resp = sock.recv(buf_sz)
-    if resp:
-      msg += resp
-    else:
-      break
-  return msg
+  try:
+    while not msg.endswith(MSG_TERMINATOR):
+      resp = sock.recv(buf_sz)
+      if resp:
+        msg += resp
+      else:
+        break
+  except socket.timeout as err:
+    logging.debug("Socket timeout error: %s" % err)
+    return None
+  except socket.error as err:
+    logging.debug("Socket error: %s" % err)
+    return None
+  return msg[:-len(MSG_TERMINATOR)]
+
+def send(sock, msg):
+  sock.sendall(msg + MSG_TERMINATOR)
 
 def marshall(line_no, action, payload):
   '''Marshalls the edit command into string meant for sendng across TCP pipe

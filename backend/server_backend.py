@@ -109,8 +109,7 @@ class server:
             break
           usr_files_filenames = map(lambda x: x[db_manager.KEY_FILENAME], usr_files)
           logging.debug("Sending the list of %d files to user #ID = '%d'" % (len(usr_files_filenames), usr_id))
-          files_pl = str(common.CTRL_OK) + common.DELIM_LONG + common.DELIM.join(usr_files_filenames)
-          sock.sendall(files_pl)
+          common.send(sock, str(common.CTRL_OK) + common.DELIM_LONG + common.DELIM.join(usr_files_filenames))
           break
         else:
           logging.debug('Wrong command')
@@ -131,7 +130,7 @@ class server:
 
       logging.debug("Waiting user's #ID = '%d' request to open/create a file" % usr_id)
       init_args = None
-      fn_vis = sock.recv(common.BUF_SZ) #common.recv(sock)
+      fn_vis = sock.recv(common.BUF_SZ)
       if fn_vis == '':
         raise RuntimeError("Received nothing from the client")
       fn, vis = fn_vis.split(common.DELIM)

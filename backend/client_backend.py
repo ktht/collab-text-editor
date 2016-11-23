@@ -29,12 +29,12 @@ class client:
       logging.debug("Connecting to server %s:%d" % self.addr_port)
       self.sock.connect(self.addr_port)
       logging.debug('Connected via %s:%d' % self.sock.getsockname())
-      #self.sock.settimeout(common.TCP_CLIENT_TIMEOUT)                     # immediately blocks
-      #logging.debug('Set the timeout to %ds' % common.TCP_CLIENT_TIMEOUT)
-      #self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE,  common.TCP_CLIENT_KEEPALIVE)
-      #self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPIDLE,  common.TCP_CLIENT_KEEPIDLE)
-      #self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPINTVL, common.TCP_CLIENT_KEEPINTVL)
-      #self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPCNT,   common.TCP_CLIENT_KEEPCNT)
+      self.sock.settimeout(common.TCP_CLIENT_TIMEOUT)                     # immediately blocks
+      logging.debug('Set the timeout to %ds' % common.TCP_CLIENT_TIMEOUT)
+      self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE,  common.TCP_CLIENT_KEEPALIVE)
+      self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPIDLE,  common.TCP_CLIENT_KEEPIDLE)
+      self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPINTVL, common.TCP_CLIENT_KEEPINTVL)
+      self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPCNT,   common.TCP_CLIENT_KEEPCNT)
     except socket.error as err:
       logging.error('Encountered error while connecting to %s:%d; reason: %s' % (self.addr_port + (err,)))
     logging.debug('Client connected to %s:%d' % self.sock.getsockname())
@@ -97,8 +97,8 @@ class client:
       logging.debug('Requesting a new session from the server')
       p_new_sess = common.ctrl_struct.pack(*(common.CTRL_REQ_INIT_SESS, self.id))
       self.sock.sendall(p_new_sess)
-      p_new_sess_resp = self.sock.recv(common.BUF_SZ)#common.recv(self.sock)
-      if p_new_sess_resp == '':
+      p_new_sess_resp = common.recv(self.sock)
+      if p_new_sess_resp is None:
         logging.error('Got an empty message?')
         return None
       new_sess_code, new_sess_files = p_new_sess_resp.split(common.DELIM_LONG)
@@ -144,7 +144,7 @@ class client:
       logging.debug("Requesting to open file '%s' by server w/ opening mode '%d'" % (self.fn, visibility))
       req = common.DELIM.join([self.fn, str(visibility)])
       self.sock.sendall(req)
-      p_new_file_resp = self.sock.recv(common.ctrl_struct.size)  # common.recv(self.sock)
+      p_new_file_resp = self.sock.recv(common.ctrl_struct.size)
       if not p_new_file_resp:
         logging.debug("Server was not happy")
         raise RuntimeError("Server was not happy b/c it didn't send us anything")
@@ -154,8 +154,8 @@ class client:
       elif new_file_code == common.CTRL_OK_READ_FILE:
         logging.debug("Server has to serve the file for us; let's read it")
         # read from socket
-        resp = self.sock.recv(common.BUF_SZ)
-        if not resp:
+        resp = common.recv(self.sock)
+        if resp is None:
           logging.error("Server was not happy")
           raise RuntimeError("Server was not happy b/c it didn't send us anything")
         resp_code, file_contents = resp.split(common.DELIM)
@@ -220,7 +220,7 @@ class client:
     msg = common.marshall(line_no, action, payload)
     try:
       logging.debug("Send the changes made in file '%s' to the server" % self.fn)
-      self.sock.sendall(msg)
+      common.send(self.sock, msg)
     except socket.timeout as err:
       logging.debug('Socket timeout error: %s' % err)
       return False
@@ -249,12 +249,13 @@ class client:
     logging.debug('Starting to receive messages from the server')
     while self.is_running:
       try:
-        msg = self.sock.recv(common.BUF_SZ)
-        if not msg:
+        msg = common.recv(self.sock)
+        if msg is not None:
           unmarshalled_msg = common.unmarshall(msg)
           client.queue_incoming.put(unmarshalled_msg)
           logging.debug('Received a message from the server; pushed it into a queue')
         else:
+          logging.debug("Server dropped?")
           break
       except socket.timeout as err:
         logging.debug('Socket timeout error: %s' % err)

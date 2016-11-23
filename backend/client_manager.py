@@ -1,4 +1,4 @@
-import threading, common, logging, file_manager, select, server_backend
+import threading, common, logging, file_manager, select, server_backend, time
 
 class client_manager:
 
@@ -39,9 +39,10 @@ class client_manager:
     if not client_metadata[client_manager.KEY_CREATEFILE]:
       logging.debug('Reading an existing file')
       # send the whole contents of the file to the client
-      file_contents = self.file_manager.str()
-      msg = str(common.CTRL_OK) + common.DELIM + file_contents
-      client_metadata[client_manager.KEY_SOCKET].sendall(msg)
+      common.send(
+        client_metadata[client_manager.KEY_SOCKET],
+        str(common.CTRL_OK) + common.DELIM + self.file_manager.str()
+      )
 
     if not self.client_manager_thread_instance.isAlive():
       # this means that the thread handling the communication b/w the server and clients has not even been started yet
@@ -67,7 +68,7 @@ class client_manager_thread(threading.Thread):
       readable, writable, exceptional = select.select(sockets, outputs, sockets)
 
       for r in readable:
-        msg = r.recv(common.BUF_SZ)
+        msg = common.recv(r)
         if msg and msg != common.DELIM:
           logging.debug("Received message from client #ID = '%d'" %
                         self.parent_manager.clients[r][client_manager.KEY_USERID])
@@ -102,7 +103,7 @@ class client_manager_thread(threading.Thread):
           while len(self.parent_manager.outputs[w]) > 0:
             logging.debug("Sending the changes to client #ID = '%d'" %
                           self.parent_manager.clients[w][client_manager.KEY_USERID])
-            w.sendall(self.parent_manager.outputs[w].pop(0))
+            common.send(w, self.parent_manager.outputs[w].pop(0))
       for e in exceptional:
         logging.debug("Client #ID = '%d' dropped connection" %
                       self.parent_manager.clients[e][client_manager.KEY_USERID])
