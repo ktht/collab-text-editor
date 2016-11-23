@@ -81,10 +81,10 @@ class TextEdGUI(tk.Tk):
     def processIncoming(self):
         self.get_page("EditorPage").updateQueue()
         while client.queue_incoming.qsize():
+            self.get_page("EditorPage").unBindCallback()
             try:
                 try:
                     msg = client.queue_incoming.get(0)
-                    #print("Tekstifaili sisu: " + str(msg))
                     line_no, action, payload = backend.common.unmarshall(msg)
                     #print(self.get_page("ConnectPage").entryText.get())
                     self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload))
@@ -95,7 +95,7 @@ class TextEdGUI(tk.Tk):
                     self.get_page("EditorPage").text.insert("1.0", str(msg) + '\n')
             except Queue.Empty:
                 pass
-
+        self.get_page("EditorPage").bindCallback()
 
 
 class ConnectPage(tk.Frame):
@@ -254,6 +254,12 @@ class EditorPage(tk.Frame):
 
     def bindCallback(self):
         self.text.bind("<<TextModified>>", self.onModification)
+
+    def unBindCallback(self):
+        self.text.bind("<<TextModified>>", self.emptyFunc)
+
+    def emptyFunc(self, event):
+        pass
 
     def onModification(self, event):
         self.text_muudatused.append((self.text.index('insert').partition(".")[0]))
