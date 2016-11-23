@@ -250,9 +250,12 @@ class client:
     while self.is_running:
       try:
         msg = self.sock.recv(common.BUF_SZ)
-        unmarshalled_msg = common.unmarshall(msg)
-        client.queue_incoming.put(unmarshalled_msg)
-        logging.debug('Received a message from the server; pushed it into a queue')
+        if not msg:
+          unmarshalled_msg = common.unmarshall(msg)
+          client.queue_incoming.put(unmarshalled_msg)
+          logging.debug('Received a message from the server; pushed it into a queue')
+        else:
+          break
       except socket.timeout as err:
         logging.debug('Socket timeout error: %s' % err)
         continue
