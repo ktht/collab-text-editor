@@ -280,7 +280,7 @@ class EditorPage(tk.Frame):
             while len(self.text_muudatused) > 0:
                 try:
                     rida = self.text_muudatused.pop()
-                    queue_send2srvr.put(str(str(rida-1) + ":" + self.text.get(str(rida) + ".0", str(
+                    queue_send2srvr.put(str(str(rida-1) + backend.common.DELIM + self.text.get(str(rida) + ".0", str(
                         rida + 1) + ".0").rstrip()))
                 except UnicodeEncodeError:
                     print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
@@ -430,7 +430,7 @@ class ThreadedClient(threading.Thread):
                 while queue_send2srvr.qsize():
                     try:
                         msg = queue_send2srvr.get(0)
-                        msg = msg.split(':')
+                        msg = msg.split(backend.common.DELIM)
                         c.send_changes(int(msg[0]), backend.common.EDIT_INSERT, str(msg[1]))
                         print msg
                     except Queue.Empty:
