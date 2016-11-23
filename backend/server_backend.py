@@ -105,8 +105,7 @@ class server:
             # this fails if the user does not exist in the DB
             logging.debug("User #ID = '%d' is not registered in our DB, cut him/her" % usr_id)
             break
-          usr_files_filenames = map(lambda x: x[db_manager.KEY_FILENAME], usr_files[db_manager.KEY_FILES]) \
-                                if len(usr_files) > 0 else []
+          usr_files_filenames = map(lambda x: x[db_manager.KEY_FILENAME], usr_files)
           logging.debug("Sending the list of %d files to user #ID = '%d'" % (len(usr_files_filenames), usr_id))
           files_pl = str(common.CTRL_OK) + common.DELIM_LONG + common.DELIM.join(usr_files_filenames)
           sock.sendall(files_pl)
@@ -150,7 +149,7 @@ class server:
         other_files_public_filenames = map(
           lambda y: y[db_manager.KEY_FILENAME],
           filter(
-            lambda x: x[db_manager.KEY_VISIBILITY == common.FILEMODE_PUBLIC],
+            lambda x: x[db_manager.KEY_VISIBILITY] == common.FILEMODE_PUBLIC,
             othr_files
           )
         )
