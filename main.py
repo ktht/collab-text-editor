@@ -84,14 +84,14 @@ class TextEdGUI(tk.Tk):
             try:
                 try:
                     msg = client.queue_incoming.get(0)
-                    print("Parast handshake: " + str(msg))
+                    print("Tekstifaili sisu: " + str(msg))
                     line_no, action, payload = backend.common.unmarshall(msg)
                     #print(self.get_page("ConnectPage").entryText.get())
                     self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload))
                     #print msg
                 except Exception:
                     #msg = client.queue_incoming.get(0)
-                    print("Enne handshake: " + str(msg))
+                    print("Parast tekstifaili: " + str(msg))
                     self.get_page("EditorPage").text.insert("1.0", str(msg) + '\n')
             except Queue.Empty:
                 pass
@@ -121,7 +121,7 @@ class ConnectPage(tk.Frame):
         label5 = tk.Label(self, text="Server Port").grid(row=3, column=0)
 
         self.entryText = tk.StringVar()
-        entry = tk.Entry(self, textvariable=self.entryText)#.grid(row=1, column=1)
+        entry = tk.Entry(self, textvariable=self.entryText).grid(row=1, column=1)
 
         self.entryText2 = tk.StringVar()
         entry2 = tk.Entry(self, textvariable=self.entryText2).grid(row=2, column=1)
@@ -239,7 +239,6 @@ class EditorPage(tk.Frame):
         self.text = CustomText(self, height=25, width=80)
         self.text.grid(column=0, row=0, sticky="nw")
         self.text.grid(column=0, row=0, sticky="nw")
-        self.text.bind("<<TextModified>>", self.onModification)
         self.text.bind('<Control-v>', lambda e: 'break')  # Disable paste option
 
         scroll = tk.Scrollbar(self)
@@ -253,6 +252,8 @@ class EditorPage(tk.Frame):
         self.text_muudatused = []
         self.counter = 0
 
+    def bindCallback(self):
+        self.text.bind("<<TextModified>>", self.onModification)
 
     def onModification(self, event):
         self.text_muudatused.append((self.text.index('insert').partition(".")[0]))
@@ -327,19 +328,23 @@ class ThreadedClient(threading.Thread):
         try:
             with open(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'), 'r+') as f:
                 self.ID_from_file = f.readline()
-                self.gui.get_page("ConnectPage").entryText.set(str(self.ID_from_file).rstrip())
+                self.gui.get_page("ConnectPage").entryText.set(str(self.ID_from_file))
+                logging.debug('Read client ID from file %s' %self.ID_from_file)
                 if os.stat(str(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'))).st_size == 0:
                     self.create_new_ID = True
+                    logging.debug('Creating new ID for the user')
                     self.gui.get_page("ConnectPage").label3.config(
                         text='Hello new user, we will create a new ID for you '
                                                             '\n when you connect!')
                     self.gui.get_page("ConnectPage").entryText.set("Creating new ID!")
                 else:
+                    logging.debug('Read client ID from file %s' % self.ID_from_file)
                     self.gui.get_page("ConnectPage").label3.config(
                         text='Hello existing user!')
         except IOError:
             self.gui.get_page("ConnectPage").entryText.set("Creating new ID!")
             self.create_new_ID = True
+            logging.debug('Creating new ID for the user')
             self.gui.get_page("ConnectPage").label3.config(text='Hello new user, we will create a new ID for you '
                                                                 '\n when you connect!')
             print("File for user ID was not found!")
@@ -398,6 +403,8 @@ class ThreadedClient(threading.Thread):
                 file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(fname), str(cl_ID)]))
                 #client.queue_incoming.put(file_contents)
 
+            time.sleep(1)
+            self.gui.get_page("EditorPage").bindCallback()
 
             while(self.running):
                 while queue_send2srvr.qsize():
