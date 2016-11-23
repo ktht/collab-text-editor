@@ -87,8 +87,8 @@ class client_manager_thread(threading.Thread):
           # put into a queue
           for s in sockets:
             if s is not r:
-              if r not in self.parent_manager.outputs:
-                self.parent_manager.outputs = []
+              if s not in self.parent_manager.outputs:
+                self.parent_manager.outputs[s] = []
               self.parent_manager.outputs[s].append(msg)
         else:
           logging.debug("Connection dropped with client #ID = '%d'?" %
