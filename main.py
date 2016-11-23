@@ -84,14 +84,14 @@ class TextEdGUI(tk.Tk):
             try:
                 try:
                     msg = client.queue_incoming.get(0)
-                    print("Tekstifaili sisu: " + str(msg))
+                    #print("Tekstifaili sisu: " + str(msg))
                     line_no, action, payload = backend.common.unmarshall(msg)
                     #print(self.get_page("ConnectPage").entryText.get())
                     self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload))
                     #print msg
                 except Exception:
                     #msg = client.queue_incoming.get(0)
-                    print("Parast tekstifaili: " + str(msg))
+                    #print("Parast tekstifaili: " + str(msg))
                     self.get_page("EditorPage").text.insert("1.0", str(msg) + '\n')
             except Queue.Empty:
                 pass
@@ -401,7 +401,7 @@ class ThreadedClient(threading.Thread):
                 fname = self.gui.get_page("SelectorPage").entryText4.get()
                 cl_ID = self.gui.get_page("SelectorPage").entryText5.get()
                 file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(fname), str(cl_ID)]))
-                #client.queue_incoming.put(file_contents)
+                client.queue_incoming.put(file_contents)
 
             time.sleep(1)
             self.gui.get_page("EditorPage").bindCallback()
