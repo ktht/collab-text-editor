@@ -70,6 +70,7 @@ class server:
     '''
     try:
       usr_id, usr_files = None, None
+      usr_files_filenames = []
       # receive either request for a new id, or initialization of a new session
 
       while usr_id is None or usr_files is None:
@@ -168,7 +169,7 @@ class server:
           }
       else:
         logging.debug("User #ID = '%d' requested to open their own file '%s'" % (usr_id, fn_loc))
-        if fn not in usr_files:
+        if fn not in usr_files_filenames:
           logging.debug("User #ID = '%d' requested to create a new file '%s'" % (usr_id, fn_loc))
           init_args = {
             client_manager.KEY_SOCKET     : sock,
