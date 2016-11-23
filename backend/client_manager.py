@@ -2,10 +2,13 @@ import threading, common, logging, file_manager, atexit, select, time
 
 class client_manager:
 
-  KEY_SOCKET     = 'socket'
-  KEY_USERID     = 'user_id'
-  KEY_FILENAME   = 'filename'
-  KEY_CREATEFILE = 'create_file'
+  KEY_SOCKET     = 'socket'      # socket object
+  KEY_USERID     = 'user_id'     # int
+  KEY_FILENAME   = 'filename'    # string
+  KEY_CREATEFILE = 'create_file' # bool
+  KEY_MAKEPUBLIC = 'make_public' # int
+
+  # TODO: add support for common.FILEMODE_READONLY
 
   def __init__(self, fn):
     '''Initializes client manager class which basically handles incoming clients

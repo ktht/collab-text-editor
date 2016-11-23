@@ -126,9 +126,14 @@ class client:
       return None
     return self.files
 
-  def req_file(self, fn):
+  def req_file(self, fn, visibility = common.FILEMODE_PUBLIC):
     '''Returns file contents
-    :param fn: string, file name (id:file basename) to be opened
+    :param fn:          string, file name (id:file basename) to be opened
+    :param visibility, int, sets the ownership if
+                               a) the file is about to be created; and if
+                               b) the value of `make_public' is set to either
+                                    common.FILEMODE_PUBLIC or common.FILEMODE_PRIVATE
+                             otherwise the visibility defaults to common.FILEMODE_DEFAULT on the server side
     :return: string, the contents of the file if everything succeeded
              None, if there was an error
     '''
@@ -139,8 +144,9 @@ class client:
     self.fn = fn
     file_contents = ''
     try:
-      logging.debug("Requesting to open file '%s' by server" % self.fn)
-      self.sock.sendall(self.fn)
+      logging.debug("Requesting to open file '%s' by server w/ opening mode '%d'" % (self.fn, visibility))
+      req = common.DELIM.join([self.fn, str(visibility)])
+      self.sock.sendall(req)
       p_new_file_resp = self.sock.recv(common.ctrl_struct.size)  # common.recv(self.sock)
       if not p_new_file_resp:
         logging.debug("Server was not happy")

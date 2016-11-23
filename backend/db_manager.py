@@ -6,8 +6,13 @@ class db_manager:
   Manages user IDs and files associated with the users.
   The DB is stored in JSON format, which is updated whenever a new user or a new file is added.
   '''
-  #TODO: add some kind of flag to each file which specifies whether the file is made for public editing or not
+
   #TODO: add more descriptive return codes than boolean's True/False
+
+  KEY_ID         = 'ID'
+  KEY_FILES      = 'files'
+  KEY_FILENAME   = 'filename'
+  KEY_VISIBILITY = 'visibility'
 
   def __init__(self, json_filename):
     logging.debug('Starting user manager')
@@ -31,7 +36,7 @@ class db_manager:
       self.db = json.load(f)
 
     # also keep the list of user IDs
-    self.ids = [x['ID'] for x in self.db]
+    self.ids = [x[db_manager.KEY_ID] for x in self.db]
 
   def get_user_files(self, user_id):
     '''Retrieves filenames associated with a user if it's present in the DB
@@ -45,18 +50,20 @@ class db_manager:
       return None
 
     for entry in self.db:
-      if user_id == entry['ID']:
+      if user_id == entry[db_manager.KEY_ID]:
         logging.debug("Found the user '%s' metadata" % str(user_id))
-        return entry['files']
+        return entry[db_manager.KEY_FILES]
 
     logging.debug("Database corruption?")
     return None
 
   @common.synchronized("lock")
-  def add_user_file(self, user_id, new_file):
+  def add_user_file(self, user_id, new_file, visibility):
     '''Add user to the JSON DB
-      :param user_id: int?, the identification number of the new user
-      :param new_file: string, the new file owned by the user
+      :param user_id:    int, The identification number of the new user
+      :param new_file:   string, The new file owned by the user
+      :param visibility, int, Tells whether the file is made for public editing (equals to common.FILEMODE_PUBLIC)
+                              or for private editing only (equals to common.FILEMODE_PRIVATE)
       :return: True, if the addition was successful,
                False otherwise
       '''
@@ -71,11 +78,14 @@ class db_manager:
     new_file_locator = common.DELIM_ID_FILE.join([str(user_id), new_file])
     entry_updated = False
     for entry in self.db:
-      if entry['ID'] == user_id:
-        if new_file_locator in entry['files']:
+      if entry[db_manager.KEY_ID] == user_id:
+        if new_file_locator in entry[db_manager.KEY_FILES]:
           logging.debug("File '%s' already exists under the user, aborting" % new_file)
           return False
-        entry['files'].append(new_file_locator)
+        entry[db_manager.KEY_FILES].append({
+          db_manager.KEY_FILENAME   : new_file_locator,
+          db_manager.KEY_VISIBILITY : visibility,
+        })
         entry_updated = True
         logging.debug("Successfully associated the file '%s' with user '%s'" % \
                       (new_file, str(user_id)))
@@ -102,7 +112,7 @@ class db_manager:
       '''
     # generate a new user ID by incrementing the largest ID by 2
     new_id = max(self.ids) + 1 if len(self.ids) > 0 else 1
-    new_entry = { 'ID' : new_id, 'files' : [] }
+    new_entry = { db_manager.KEY_ID : new_id, db_manager.KEY_FILES : [] }
 
     self.ids.append(new_id)
     self.db.append(new_entry)

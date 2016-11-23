@@ -32,6 +32,10 @@ EDIT_DELETE  = int(0x01 << 0)
 EDIT_REPLACE = int(0x01 << 1)
 EDIT_INSERT  = int(0x01 << 2)
 
+FILEMODE_PUBLIC   = int(0x01 << 0)
+FILEMODE_PRIVATE  = int(0x01 << 1)
+FILEMODE_DEFAULT  = int(0x01 << 2)
+
 def close_socket(sock):
   import socket
 

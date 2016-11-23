@@ -105,8 +105,10 @@ class server:
             # this fails if the user does not exist in the DB
             logging.debug("User #ID = '%d' is not registered in our DB, cut him/her" % usr_id)
             break
-          logging.debug("Sending the list of %d files to user #ID = '%d'" % (len(usr_files), usr_id))
-          files_pl = str(common.CTRL_OK) + common.DELIM_LONG + common.DELIM.join(usr_files)
+          usr_files_filenames = map(lambda x: x[db_manager.KEY_FILENAME], usr_files[db_manager.KEY_FILES]) \
+                                if len(usr_files) > 0 else []
+          logging.debug("Sending the list of %d files to user #ID = '%d'" % (len(usr_files_filenames), usr_id))
+          files_pl = str(common.CTRL_OK) + common.DELIM_LONG + common.DELIM.join(usr_files_filenames)
           sock.sendall(files_pl)
           break
         else:
@@ -128,9 +130,13 @@ class server:
 
       logging.debug("Waiting user's #ID = '%d' request to open/create a file" % usr_id)
       init_args = None
-      fn = sock.recv(common.BUF_SZ) #common.recv(sock)
-      if fn == '':
+      fn_vis = sock.recv(common.BUF_SZ) #common.recv(sock)
+      if fn_vis == '':
         raise RuntimeError("Received nothing from the client")
+      fn, vis = fn_vis.split(common.DELIM)
+      vis = int(vis)
+      if vis not in (common.FILEMODE_PUBLIC, common.FILEMODE_PRIVATE):
+        raise RuntimeError("Received invalid visibility for the file")
       fn_id, fn_loc = fn.split(common.DELIM_ID_FILE)
       fn_id = int(fn_id)
       if fn_id != usr_id:
@@ -141,7 +147,14 @@ class server:
           logging.debug("User #ID = '%d' requested a file from the user #ID = '%d' which does not exist" %
                         (usr_id, fn_id))
           raise RuntimeError("Invalid request to open a file owned by a non-existen user")
-        if fn not in othr_files:
+        other_files_public_filenames = map(
+          lambda y: y[db_manager.KEY_FILENAME],
+          filter(
+            lambda x: x[db_manager.KEY_VISIBILITY == common.FILEMODE_PUBLIC],
+            othr_files
+          )
+        )
+        if fn not in other_files_public_filenames:
           logging.debug("User #ID = '%d' requested file '%s' from user #ID = '%d' which does not exist; abort" %
                         (usr_id, fn_loc, fn_id))
         else:
@@ -151,7 +164,8 @@ class server:
             client_manager.KEY_SOCKET     : sock,
             client_manager.KEY_FILENAME   : fn,
             client_manager.KEY_USERID     : usr_id,
-            client_manager.KEY_CREATEFILE : False
+            client_manager.KEY_CREATEFILE : False,
+            client_manager.KEY_MAKEPUBLIC : common.FILEMODE_DEFAULT,
           }
       else:
         logging.debug("User #ID = '%d' requested to open their own file '%s'" % (usr_id, fn_loc))
@@ -161,10 +175,11 @@ class server:
             client_manager.KEY_SOCKET     : sock,
             client_manager.KEY_FILENAME   : fn,
             client_manager.KEY_USERID     : usr_id,
-            client_manager.KEY_CREATEFILE : True
+            client_manager.KEY_CREATEFILE : True,
+            client_manager.KEY_MAKEPUBLIC : vis,
           }
           # update db accordingly
-          self.db.add_user_file(usr_id, fn_loc)
+          self.db.add_user_file(usr_id, fn_loc, vis)
         else:
           logging.debug("User #ID = '%d' requested to open an existing file '%s'" % (usr_id, fn_loc))
           # open an existing file
@@ -172,7 +187,8 @@ class server:
             client_manager.KEY_SOCKET     : sock,
             client_manager.KEY_FILENAME   : fn,
             client_manager.KEY_USERID     : usr_id,
-            client_manager.KEY_CREATEFILE : False
+            client_manager.KEY_CREATEFILE : False,
+            client_manager.KEY_MAKEPUBLIC : common.FILEMODE_DEFAULT,
           }
 
       logging.debug("Assembled the arguments for the client manager")
