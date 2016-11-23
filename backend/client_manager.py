@@ -1,4 +1,4 @@
-import threading, common, logging, file_manager, atexit, select
+import threading, common, logging, file_manager, atexit, select, time
 
 class client_manager:
 
@@ -17,6 +17,7 @@ class client_manager:
     self.outputs = {}
     self.lock = threading.Lock()
     self.client_manager_thread_instance = client_manager_thread(self) # shall we daemonize it?
+    self.client_manager_thread_instance.setName('ClientManagerThread-%s' % fn)
     atexit.register(self.file_manager.close) # shameless hack :)
 
   @common.synchronized("lock")
@@ -76,6 +77,8 @@ class client_manager_thread(threading.Thread):
               continue
           except ValueError as err:
             logging.debug("Encountered some kind of error in unmarshalling: %s" % err)
+            if r not in exceptional:
+              exceptional.append(r)
             continue
 
           # put into a queue

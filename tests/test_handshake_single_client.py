@@ -17,11 +17,13 @@ def test_client(*args):
     logging.info("Client files: %s" % str(client_files))
     file_contents = c.req_file(common.DELIM_ID_FILE.join([str(client_id), test_file]))
     logging.info("Current file contents: '%s'" % file_contents)
-    ret_changes = c.send_changes(0, common.EDIT_REPLACE, test_text)
-    if ret_changes:
-      logging.info("Woo, success")
-    else:
-      logging.error("ERROR!")
+
+    for i in range(4):
+      ret_changes = c.send_changes(0, common.EDIT_REPLACE, test_text)
+      if ret_changes:
+        logging.info("WOOO, SUCCESS!")
+      else:
+        logging.error("ERROR!")
 
 def test_server(*args):
   with server(*args) as s:
@@ -36,6 +38,7 @@ if __name__ == '__main__':
 
   test_server_thread = threading.Thread(
     target = test_server,
+    name   = 'TestServerThread',
     args   = (common.SERVER_INET_ADDR_DEFAULT, common.SERVER_PORT_DEFAULT, common.TMP_DIR_SERVER)
   )
   test_server_thread.setDaemon(True) # dies with the main thread
@@ -45,6 +48,7 @@ if __name__ == '__main__':
 
   test_client_thread = threading.Thread(
     target = test_client,
+    name   = 'TestClientThread',
     args   = (common.SERVER_INET_ADDR_DEFAULT, common.SERVER_PORT_DEFAULT, common.TMP_DIR_CLIENT)
   )
   test_client_thread.start()

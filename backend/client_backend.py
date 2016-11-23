@@ -170,7 +170,10 @@ class client:
       # this thread should die only if
       #  a) self.is_running is set to False; or if
       #  b) the main thread exits (we daemonize the thread)
-      receiving_thread = threading.Thread(target = self.recv_changes)
+      receiving_thread = threading.Thread(
+        target = self.recv_changes,
+        name   = 'ReceiveFromServerThread'
+      )
       receiving_thread.setDaemon(True)
       receiving_thread.start()
 

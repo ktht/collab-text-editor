@@ -190,7 +190,10 @@ class server:
 
       if fn not in self.managers:
         self.managers[fn] = client_manager(fn)
-      self.managers[fn].add_client(init_args) # may start a new thread for the file if not already running
+      # may start a new thread for the file if not already running
+      self.managers[fn].add_client(init_args)
+
+      logging.debug('Finished the handshake')
 
     except struct.error as err:
       logging.error('Encountered unpacking error: %s' % err)
@@ -230,7 +233,11 @@ class server:
       try:
         client_sock, client_addr = self.socket.accept() # blocks
         logging.debug('New client connected from %s:%d' % client_addr)
-        thread = threading.Thread(target = self.__handle, args = (client_sock, client_addr))
+        thread = threading.Thread(
+          target = self.__handle,
+          name   = 'ClientHandshakeThread-%s:%d' % client_addr,
+          args   = (client_sock, client_addr)
+        )
         thread.setDaemon(True)
         thread.start()
       except KeyboardInterrupt:
