@@ -13,7 +13,7 @@ class client_manager:
   def __init__(self, fn):
     '''Initializes client manager class which basically handles incoming clients
        There must be one such manager per file (but there may be multiple clients which edit the file at the same time)
-    :param fn:
+    :param fn: string, file name (id:file basename) to be opened
     '''
     self.fn = fn
     self.file_manager = file_manager.file_manager(fn)
