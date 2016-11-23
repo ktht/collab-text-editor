@@ -247,10 +247,7 @@ class client:
     logging.debug('Starting to receive messages from the server')
     while self.is_running:
       try:
-        #msg = self.sock.recv(common.BUF_SZ)
-        msg = common.DELIM.join(['1',str(common.EDIT_REPLACE),"This is the new line %s" %str(random.randint(0, 10))])
-        time.sleep(10)
-        print(msg)
+        msg = self.sock.recv(common.BUF_SZ)
         unmarshalled_msg = common.unmarshall(msg)
         client.queue_incoming.put(unmarshalled_msg)
         logging.debug('Received a message from the server; pushed it into a queue')
