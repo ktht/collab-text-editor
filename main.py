@@ -83,16 +83,20 @@ class TextEdGUI(tk.Tk):
         while client.queue_incoming.qsize():
             self.get_page("EditorPage").unBindCallback()
             try:
-                try:
-                    msg = client.queue_incoming.get(0)
-                    line_no, action, payload = backend.common.unmarshall(msg)
+                if client1.useMarshalling:
+                    line_no, action, payload = client.queue_incoming.get(0)
+                    #print("Message before unmarshalling: "+str(msg))
+                    # = backend.common.unmarshall(msg)
+                    #print("Line number: "+str(line_no))
+                    #print("Action: "+str(action))
+                    #print("Payload: "+str(payload))
                     #print(self.get_page("ConnectPage").entryText.get())
                     self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload))
                     #print msg
-                except Exception:
+                else:
                     #msg = client.queue_incoming.get(0)
                     #print("Parast tekstifaili: " + str(msg))
-                    self.get_page("EditorPage").text.insert("1.0", str(msg) + '\n')
+                    self.get_page("EditorPage").text.insert("1.0", str(client.queue_incoming.get(0)))
             except Queue.Empty:
                 pass
         self.get_page("EditorPage").bindCallback()
@@ -310,15 +314,22 @@ def popupmsg(argument):
     B1.pack()
     popup.mainloop()
 
+def popupmsg_close(argument):
+    popup = tk.Tk()
+    popup.title("Pop up")
+    label=tk.Label(popup, text = argument)
+    label.pack(side="top", fill="x", pady=10)
+    B1 = tk.Button(popup, text="Ok", command=client1.endApplication)
+    B1.pack()
+    popup.mainloop()
+
 
 class ThreadedClient(threading.Thread):
 
     def __init__(self):
-        self.test_file = 'test2.txt'
-        self.test_text = 'This is the long text'
-
         self.gui = TextEdGUI( self.endApplication)
 
+        self.useMarshalling = False
         self.running = 1
         self.e = threading.Event()
         self.thread3 = threading.Thread(target = self.clientThread, name="clientThread")
@@ -407,9 +418,12 @@ class ThreadedClient(threading.Thread):
                 fname = self.gui.get_page("SelectorPage").entryText4.get()
                 cl_ID = self.gui.get_page("SelectorPage").entryText5.get()
                 file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(fname), str(cl_ID)]))
+                if file_contents == None:
+                    popupmsg_close("This file does not exist, closing program.")
                 client.queue_incoming.put(file_contents)
 
             time.sleep(1)
+            self.useMarshalling = True
             self.gui.get_page("EditorPage").bindCallback()
 
             while(self.running):

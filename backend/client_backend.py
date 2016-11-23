@@ -29,12 +29,12 @@ class client:
       logging.debug("Connecting to server %s:%d" % self.addr_port)
       self.sock.connect(self.addr_port)
       logging.debug('Connected via %s:%d' % self.sock.getsockname())
-      self.sock.settimeout(common.TCP_CLIENT_TIMEOUT)                     # immediately blocks
-      logging.debug('Set the timeout to %ds' % common.TCP_CLIENT_TIMEOUT)
-      self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE,  common.TCP_CLIENT_KEEPALIVE)
-      self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPIDLE,  common.TCP_CLIENT_KEEPIDLE)
-      self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPINTVL, common.TCP_CLIENT_KEEPINTVL)
-      self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPCNT,   common.TCP_CLIENT_KEEPCNT)
+      #self.sock.settimeout(common.TCP_CLIENT_TIMEOUT)                     # immediately blocks
+      #logging.debug('Set the timeout to %ds' % common.TCP_CLIENT_TIMEOUT)
+      #self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE,  common.TCP_CLIENT_KEEPALIVE)
+      #self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPIDLE,  common.TCP_CLIENT_KEEPIDLE)
+      #self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPINTVL, common.TCP_CLIENT_KEEPINTVL)
+      #self.sock.setsockopt(socket.SOL_TCP,    socket.TCP_KEEPCNT,   common.TCP_CLIENT_KEEPCNT)
     except socket.error as err:
       logging.error('Encountered error while connecting to %s:%d; reason: %s' % (self.addr_port + (err,)))
     logging.debug('Client connected to %s:%d' % self.sock.getsockname())
@@ -159,6 +159,7 @@ class client:
           logging.error("Server was not happy")
           raise RuntimeError("Server was not happy b/c it didn't send us anything")
         resp_code, file_contents = resp.split(common.DELIM)
+        print("File contents: "+str(file_contents))
         if int(resp_code) == common.CTRL_OK:
           logging.debug('Received %d bytes of the file' % len(file_contents))
         else:
