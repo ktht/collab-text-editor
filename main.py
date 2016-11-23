@@ -1,5 +1,5 @@
 import Tkinter as tk
-import sys, tkFileDialog, os, Queue, threading, time, random, socket
+import sys, tkFileDialog, os, Queue, threading, time, random, socket, logging
 
 import backend.common
 from backend.client_backend import client
@@ -7,6 +7,12 @@ from tkSimpleDialog import askstring
 from tkFileDialog   import asksaveasfilename
 
 from tkMessageBox import askokcancel
+
+logging.basicConfig(
+    level  = logging.DEBUG,
+    format = '[%(asctime)s] [%(threadName)s] [%(module)s:%(funcName)s:%(lineno)d] [%(levelname)s] -- %(message)s',
+    stream = sys.stdout
+  )
 
 queue_send2srvr = Queue.Queue()
 
@@ -75,11 +81,11 @@ class TextEdGUI(tk.Tk):
 
     def processIncoming(self):
         self.get_page("EditorPage").updateQueue()
-        while self.queue_recv_srvr.qsize():
+        while client.queue_incoming.qsize():
             try:
-                msg = self.queue_recv_srvr.get(0)
+                msg = client.queue_incoming.get(0)
                 #print(self.get_page("ConnectPage").entryText.get())
-                #self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
+                self.get_page("EditorPage").text.insert("1.0", str(msg)+'\n')
                 #print msg
             except Queue.Empty:
                 pass
@@ -104,12 +110,12 @@ class ConnectPage(tk.Frame):
                             command=lambda: self.funcs(self.controller))
         button1.grid(row=3, column=3, padx=15)
 
-        label6 = tk.Label(self, text="User ID").grid(row=1, column=0, pady=5)
+        #label6 = tk.Label(self, text="User ID").grid(row=1, column=0, pady=5)
         label4 = tk.Label(self, text="Server IP").grid(row=2,column=0)
         label5 = tk.Label(self, text="Server Port").grid(row=3, column=0)
 
         self.entryText = tk.StringVar()
-        entry = tk.Entry(self, textvariable=self.entryText).grid(row=1, column=1)
+        entry = tk.Entry(self, textvariable=self.entryText)#.grid(row=1, column=1)
 
         self.entryText2 = tk.StringVar()
         entry2 = tk.Entry(self, textvariable=self.entryText2).grid(row=2, column=1)
@@ -151,6 +157,7 @@ class ConnectPage(tk.Frame):
 
         contr.show_frame(SelectorPage)
         client1.e.set()
+        client1.e.clear()
 
 class SelectorPage(tk.Frame):
 
@@ -173,7 +180,7 @@ class SelectorPage(tk.Frame):
         #button3.grid(row=4, column=1)
 
         button4 = tk.Button(self, text="Select from list",
-                            command= self.select_Listelem)
+                            command=lambda: self.funcs2(self.controller))
         button4.grid(row=3, column=2, padx=10)
 
         self.entryText4 = tk.StringVar()
@@ -202,6 +209,12 @@ class SelectorPage(tk.Frame):
             print('Nothing has been selected from the list!')
             #assert type(exception).__name__ == 'NameError'
 
+    def funcs2(self, contr):
+        contr.show_frame(EditorPage)
+        self.select_Listelem
+        client1.e.set()
+        client1.e.clear()
+
 
 class EditorPage(tk.Frame):
 
@@ -219,11 +232,11 @@ class EditorPage(tk.Frame):
         self.text.configure(yscrollcommand=scroll.set)
         scroll.grid(column=1, row=0, sticky="ne", ipady=163)
 
-        label = tk.Label(self, text="Editor Page", font=("Verdana", 12))
-        label.grid(column=0, row=1, sticky="se")
+        #label = tk.Label(self, text="Editor Page", font=("Verdana", 12))
+        #label.grid(column=0, row=1, sticky="se")
 
-        label2 = tk.Label(self, text="Editor Page", font=("Verdana", 12))
-        label2.grid(column=0, row=1, sticky="s")
+        #label2 = tk.Label(self, text="Editor Page", font=("Verdana", 12))
+        #label2.grid(column=0, row=1, sticky="s")
 
         button5 = tk.Button(self, text="Back",
                             command=lambda: controller.show_frame(SelectorPage))
@@ -288,6 +301,9 @@ class ThreadedClient(threading.Thread):
     def __init__(self):
         self.queue_recv_srvr = Queue.Queue()
 
+        self.test_file = 'test2.txt'
+        self.test_text = 'This is the long text'
+
         self.gui = TextEdGUI(self.queue_recv_srvr, self.endApplication)
         #self.gui.get_page("EditorPage").text.insert("1.0","Hello, world!")
 
@@ -339,8 +355,8 @@ class ThreadedClient(threading.Thread):
     def recv_srvr_Thread(self):
         while self.running:
             time.sleep(random.random() * 1.5)
-            msg = random.random()
-            self.queue_recv_srvr.put(msg)
+            #msg = random.random()
+            #self.queue_recv_srvr.put(msg)
 
     def send2srvr_Thread(self):
         """Handle all messages currently in the queue, if any."""
@@ -359,6 +375,7 @@ class ThreadedClient(threading.Thread):
         usr_ID = self.gui.get_page("ConnectPage").entryText.get()
         server_IP  = self.gui.get_page("ConnectPage").entryText2.get()
         server_PORT = int(self.gui.get_page("ConnectPage").entryText3.get())
+        #print("User ID:"+str(usr_ID))
 
         if not usr_ID.isdigit():
             usr_ID = 1
@@ -369,7 +386,6 @@ class ThreadedClient(threading.Thread):
                 client_id = c.req_id()
                 try:
                     with open(os.path.join(backend.common.TMP_DIR_CLIENT, 'Usr_ID'), 'w+') as f:
-                        print(client_id)
                         f.write(str(client_id))
                 except IOError:
                     print("File IOError!")
@@ -381,11 +397,25 @@ class ThreadedClient(threading.Thread):
             client_files = c.req_session()
             self.gui.get_page("SelectorPage").listBox.delete(0, tk.END)
             if client_files:
-                print(client_files)
                 for i in client_files:
                     self.gui.get_page("SelectorPage").listBox.insert(tk.END, i)
-                file_contents = c.req_file('%d:test.txt' % 4)
-            #print(client_files)
+
+
+            self.e.wait()
+            fname = self.gui.get_page("SelectorPage").listBox.get(self.gui.get_page("SelectorPage").listBox.curselection())
+            file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(client_id), fname.split(':')[1]]))
+
+            client.queue_incoming.put(file_contents)
+            #self.queue_recv_srvr.put(file_contents)
+
+
+
+
+            #ret_changes = c.send_changes(0, backend.common.EDIT_REPLACE, self.test_text)
+            #if ret_changes:
+            #    print("WOOO, SUCCESS!")
+            #else:
+            #    print("ERROR!")
 
             while(self.running):
                 time.sleep(0.2)

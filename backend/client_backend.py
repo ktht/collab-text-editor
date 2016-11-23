@@ -1,6 +1,7 @@
-import common, logging, socket, struct, threading
+import common, logging, socket, struct, threading, Queue, time, random
 
 class client:
+  queue_incoming = Queue.Queue()
 
   def __init__(self, addr, port, dirname, client_id = None):
     '''Initialize client instance (must be used on the client side!)
@@ -14,7 +15,6 @@ class client:
     self.id        = client_id
     self.fn        = None
     self.files     = []
-    self.queue_incoming = None
     self.is_running = True
 
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -45,12 +45,6 @@ class client:
     '''
     common.close_socket(self.sock)
 
-  def register_queue(self, queue):
-    '''Setter; in principle should bind a given queue to the receiving queue
-    :param queue: queue, For the incoming messages
-    :return: None
-    '''
-    self.queue_incoming =  queue
 
   def req_id(self):
     '''Request a new client ID from the server
@@ -253,9 +247,12 @@ class client:
     logging.debug('Starting to receive messages from the server')
     while self.is_running:
       try:
-        msg = self.sock.recv(common.BUF_SZ)
+        #msg = self.sock.recv(common.BUF_SZ)
+        msg = common.DELIM.join(['1',str(common.EDIT_REPLACE),"This is the new line %s" %str(random.randint(0, 10))])
+        time.sleep(10)
+        print(msg)
         unmarshalled_msg = common.unmarshall(msg)
-        self.queue_incoming.append(unmarshalled_msg)
+        client.queue_incoming.put(unmarshalled_msg)
         logging.debug('Received a message from the server; pushed it into a queue')
       except socket.timeout as err:
         logging.debug('Socket timeout error: %s' % err)
