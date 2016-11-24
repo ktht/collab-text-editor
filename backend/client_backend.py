@@ -218,7 +218,7 @@ class client:
     if self.fn is None:
       logging.error("You haven't requested any files from the server. SMH")
       return False
-    msg = common.marshall(line_no, action, payload)
+    msg = common.marshall(line_no, action, payload, self.id)
     try:
       logging.debug("Send the changes made in file '%s' to the server" % self.fn)
       common.send(self.sock, msg)

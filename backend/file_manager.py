@@ -64,11 +64,12 @@ class file_manager:
     '''
     return '\n'.join(self.lines.values())
 
-  def edit(self, line_no, action, new_line = ''):
+  def edit(self, line_no, action, new_line = '', id = None):
     '''Edits a line in the file represented by a dictionary
     :param line_no:  int, The line nr to be edited (line numbers start from 0)
-    :param action:  int, valid values are common.EDIT_REPLACE, common.EDIT_INSERT and common.EDIT_DELETE
+    :param action:   int, valid values are common.EDIT_REPLACE, common.EDIT_INSERT and common.EDIT_DELETE
     :param new_line: string, The replacement line (ignored if `action' is set to common.EDIT_DELETE)
+    :param id:       int, ID of the client that issued the change; ignored
 
     :return: True, if the file modification was successful
              False, if the method encountered inconsistencies

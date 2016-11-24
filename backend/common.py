@@ -74,7 +74,7 @@ def recv(sock, buf_sz = BUF_SZ):
 def send(sock, msg):
   sock.sendall(msg + MSG_TERMINATOR)
 
-def marshall(line_no, action, payload):
+def marshall(line_no, action, payload, id):
   '''Marshalls the edit command into string meant for sendng across TCP pipe
   :param line_no: int, Line number to be edited
   :param action:  int, Edit control code
@@ -82,13 +82,13 @@ def marshall(line_no, action, payload):
   :param payload: string, New line (use an empty string if the edit control code is EDIT_DELETE)
   :return: string, The marshalled message
   '''
-  if not (type(line_no) == int and type(action) == int and type(payload) == str):
+  if not (type(line_no) == int and type(action) == int and type(payload) == str and type(id) == int):
     raise ValueError("Invalid input types")
   if not (line_no >= 0):
     raise ValueError("Invalid row number (must be a positive integer)")
   if not (action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT)):
     raise ValueError("Invalid edit control code")
-  msg = DELIM.join([str(line_no), str(action), payload])
+  msg = DELIM.join([str(line_no), str(action), payload, str(id)])
   return msg
 
 def unmarshall(msg):
@@ -101,15 +101,15 @@ def unmarshall(msg):
   if not (type(msg) == str):
     raise ValueError("Wrong type to be unmarshalled (must be a string)")
   split = msg.split(DELIM)
-  if not (len(split) == 3):
-    raise ValueError("Invalid number of elements marshalled into the message (must be 3)")
-  line_no, action, payload = int(split[0]), int(split[1]), split[2]
+  if not (len(split) == 4):
+    raise ValueError("Invalid number of elements marshalled into the message (must be 4)")
+  line_no, action, payload, id = int(split[0]), int(split[1]), split[2], split[3]
 
   if not (line_no >= 0):
     raise ValueError("Invalid row number (must be a positive integer)")
   if not (action in (EDIT_DELETE, EDIT_REPLACE, EDIT_INSERT)):
     raise ValueError("Invalid edit control code")
-  return line_no, action, payload
+  return line_no, action, payload, id
 
 def synchronized(lock_name):
   def wrapper(func):
