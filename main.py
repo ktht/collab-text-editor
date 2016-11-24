@@ -93,13 +93,11 @@ class TextEdGUI(tk.Tk):
                         #pass
 
                     elif int(action) == backend.common.EDIT_DELETE:
-                        self.get_page("EditorPage").text.delete(str(line_no + 2) + ".0", str(line_no + 3) + ".0")
-                        #self.get_page("EditorPage").text.insert(str(line_no+1)+".0",'\n')
-                        print("Line no: "+str(line_no))
-                        print("Action: " + str(action))
-                        print("Payload: " + str(payload))
-                        print("ID: " + str(id_c))
-                        #pass
+                        tekst = str(self.get_page("EditorPage").text.get(str(line_no+1)+".0", str(line_no+2)+".0")).rstrip()
+                        tekst2 = str(self.get_page("EditorPage").text.get(str(line_no+2) + ".0",
+                                                                         str(line_no+3) + ".0")).rstrip()
+                        self.get_page("EditorPage").text.delete(str(line_no+1) + ".0", str(line_no+3) + ".0")
+                        self.get_page("EditorPage").text.insert(str(line_no+1)+".0",tekst+tekst2+'\n')
                 else:
                     self.get_page("EditorPage").text.insert("1.0", str(client.queue_incoming.get(0)))
                     global lineCount
