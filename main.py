@@ -10,6 +10,7 @@ logging.basicConfig(
     stream = sys.stdout
   )
 
+cv = threading.Condition()
 queue_send2srvr = Queue.Queue()
 useListElem = True
 lineCount = 0
@@ -284,8 +285,12 @@ class EditorPage(tk.Frame):
         print("RowChange: "+str(self.rowChange))
 
         try:
+            cv.acquire()
             queue_send2srvr.put(str(str(rida - 1) + backend.common.DELIM + str(self.rowChange) + backend.common.DELIM
                                     + self.text.get(str(rida) + ".0", str(rida + 1) + ".0").rstrip()))
+            if queue_send2srvr.qsize() == 1:
+                cv.notify_all()
+            cv.release()
         except UnicodeEncodeError:
             print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
 
@@ -436,19 +441,21 @@ class ThreadedClient(threading.Thread):
             self.gui.get_page("EditorPage").bindCallback()
 
             while(self.running):
-                while queue_send2srvr.qsize():
-                    try:
-                        msg = queue_send2srvr.get(0)
-                        msg = msg.split(backend.common.DELIM)
-                        if int(msg[1]) == 0:
-                            c.send_changes(int(msg[0]), backend.common.EDIT_REPLACE, str(msg[2]))
-                        elif int(msg[1]) == 1:
-                            c.send_changes(int(msg[0]), backend.common.EDIT_INSERT, str(msg[2]))
-                        elif int(msg[1]) == 2:
-                            c.send_changes(int(msg[0]), backend.common.EDIT_DELETE, str(msg[2]))
-                    except Queue.Empty:
-                        pass
-                time.sleep(0.2)
+                cv.acquire()
+                if queue_send2srvr.qsize() == 0:
+                    cv.wait()
+                try:
+                    msg = queue_send2srvr.get(0)
+                    msg = msg.split(backend.common.DELIM)
+                    if int(msg[1]) == 0:
+                        c.send_changes(int(msg[0]), backend.common.EDIT_REPLACE, str(msg[2]))
+                    elif int(msg[1]) == 1:
+                        c.send_changes(int(msg[0]), backend.common.EDIT_INSERT, str(msg[2]))
+                    elif int(msg[1]) == 2:
+                        c.send_changes(int(msg[0]), backend.common.EDIT_DELETE, str(msg[2]))
+                except Queue.Empty:
+                    pass
+                cv.release()
 
 
     def endApplication(self):
