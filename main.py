@@ -267,7 +267,7 @@ class EditorPage(tk.Frame):
         pass
 
     def onModification(self, event):
-        #self.controller.config(text='Last edit done by Me!')
+        client1.gui.status2.config(text='Last edit done by Me!')
         global lineCount
         var = lineCount
         lineCount =  int(self.text.index('end-1c').split('.')[0])
@@ -309,10 +309,6 @@ class EditorPage(tk.Frame):
                 cv.release()
         except UnicodeEncodeError:
             print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
-
- #   def updateQueue(self):
-#
-#            while len(self.text_muudatused) > 0:
 
 
 
