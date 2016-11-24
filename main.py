@@ -3,10 +3,6 @@ import sys, tkFileDialog, os, Queue, threading, time, random, socket, logging
 
 import backend.common
 from backend.client_backend import client
-from tkSimpleDialog import askstring
-from tkFileDialog   import asksaveasfilename
-
-from tkMessageBox import askokcancel
 
 logging.basicConfig(
     level  = logging.DEBUG,
@@ -16,6 +12,7 @@ logging.basicConfig(
 
 queue_send2srvr = Queue.Queue()
 useListElem = True
+lineCount = 0
 
 class TextEdGUI(tk.Tk):
 
@@ -79,21 +76,34 @@ class TextEdGUI(tk.Tk):
         return self.frames[page_name]
 
     def processIncoming(self):
-        self.get_page("EditorPage").updateQueue()
+        #self.get_page("EditorPage").updateQueue()
         while client.queue_incoming.qsize():
             self.get_page("EditorPage").unBindCallback()
             try:
                 if client1.useMarshalling:
-                    line_no, action, payload = client.queue_incoming.get(0)
-                    self.get_page("EditorPage").text.delete(str(line_no+1)+".0", str(line_no+2)+".0")
-                    self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload)+'\n')
+                    line_no, action, payload, id_c = client.queue_incoming.get(0)
+                    if int(action) == backend.common.EDIT_REPLACE:
+                        self.get_page("EditorPage").text.delete(str(line_no+1)+".0", str(line_no+2)+".0")
+                        self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload)+'\n')
+                    elif int(action) == backend.common.EDIT_INSERT:
+                        print("Line no: "+str(line_no))
+                        print("Action: " + str(action))
+                        print("Payload: " + str(payload))
+                        print("ID: " + str(id_c))
+                        #pass
 
-                    int(self.get_page("EditorPage").index('end-1c').split('.')[0])
-
+                    elif int(action) == backend.common.EDIT_DELETE:
+                        self.get_page("EditorPage").text.delete(str(line_no + 2) + ".0", str(line_no + 3) + ".0")
+                        #self.get_page("EditorPage").text.insert(str(line_no+1)+".0",'\n')
+                        print("Line no: "+str(line_no))
+                        print("Action: " + str(action))
+                        print("Payload: " + str(payload))
+                        print("ID: " + str(id_c))
+                        #pass
                 else:
-                    #msg = client.queue_incoming.get(0)
-                    #print("Parast tekstifaili: " + str(msg))
                     self.get_page("EditorPage").text.insert("1.0", str(client.queue_incoming.get(0)))
+                    global lineCount
+                    lineCount = int(self.get_page("EditorPage").text.index('end-1c').split('.')[0])
             except Queue.Empty:
                 pass
         self.get_page("EditorPage").bindCallback()
@@ -214,11 +224,9 @@ class SelectorPage(tk.Frame):
             self.controller.show_frame(EditorPage)
         except Exception:
             print('Nothing has been selected from the list!')
-            #assert type(exception).__name__ == 'NameError'
 
     def funcs2(self, contr):
         contr.show_frame(EditorPage)
-        #self.select_Listelem
         client1.e.set()
         client1.e.clear()
 
@@ -245,13 +253,13 @@ class EditorPage(tk.Frame):
         scroll = tk.Scrollbar(self)
         self.text.configure(yscrollcommand=scroll.set)
         scroll.grid(column=1, row=0, sticky="ne", ipady=163)
+        self.rowChange = 0 # rowChange = 0 means no change, rowChange = 1 means enter, rowChange = 2 means delete line
 
-        button5 = tk.Button(self, text="Back",
-                            command=lambda: controller.show_frame(SelectorPage))
-        button5.grid(column=0,row=1, sticky="sw", padx=5)
+        #button5 = tk.Button(self, text="Back",
+        #                    command=lambda: controller.show_frame(SelectorPage))
+        #button5.grid(column=0,row=1, sticky="sw", padx=5)
 
-        self.text_muudatused = []
-        self.counter = 0
+
 
     def bindCallback(self):
         self.text.bind("<<TextModified>>", self.onModification)
@@ -263,24 +271,30 @@ class EditorPage(tk.Frame):
         pass
 
     def onModification(self, event):
-        self.text_muudatused.append((self.text.index('insert').partition(".")[0]))
-        self.counter = 0
+        global lineCount
+        var = lineCount
+        lineCount =  int(self.text.index('end-1c').split('.')[0])
+        rida = int(self.text.index('insert').partition(".")[0])
 
-    def updateQueue(self):
-        self.counter += 1
+        if var == lineCount:
+            self.rowChange = 0
+        elif var < lineCount:
+            self.rowChange = 1
+        else:
+            self.rowChange = 2
 
-        if self.counter >= 5 and self.text_muudatused:
-            self.text_muudatused = set(self.text_muudatused)
-            self.text_muudatused = [int(x) for x in self.text_muudatused]
-            self.text_muudatused.sort(reverse=True)
+        print("RowChange: "+str(self.rowChange))
 
-            while len(self.text_muudatused) > 0:
-                try:
-                    rida = self.text_muudatused.pop()
-                    queue_send2srvr.put(str(str(rida-1) + backend.common.DELIM + self.text.get(str(rida) + ".0", str(
-                        rida + 1) + ".0").rstrip()))
-                except UnicodeEncodeError:
-                    print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
+        try:
+            queue_send2srvr.put(str(str(rida - 1) + backend.common.DELIM + str(self.rowChange) + backend.common.DELIM
+                                    + self.text.get(str(rida) + ".0", str(rida + 1) + ".0").rstrip()))
+        except UnicodeEncodeError:
+            print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
+
+ #   def updateQueue(self):
+#
+#            while len(self.text_muudatused) > 0:
+
 
 
 class CustomText(tk.Text):
@@ -428,8 +442,12 @@ class ThreadedClient(threading.Thread):
                     try:
                         msg = queue_send2srvr.get(0)
                         msg = msg.split(backend.common.DELIM)
-                        c.send_changes(int(msg[0]), backend.common.EDIT_INSERT, str(msg[1]))
-                        print msg
+                        if int(msg[1]) == 0:
+                            c.send_changes(int(msg[0]), backend.common.EDIT_REPLACE, str(msg[2]))
+                        elif int(msg[1]) == 1:
+                            c.send_changes(int(msg[0]), backend.common.EDIT_INSERT, str(msg[2]))
+                        elif int(msg[1]) == 2:
+                            c.send_changes(int(msg[0]), backend.common.EDIT_DELETE, str(msg[2]))
                     except Queue.Empty:
                         pass
                 time.sleep(0.2)
