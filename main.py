@@ -85,14 +85,11 @@ class TextEdGUI(tk.Tk):
             try:
                 if client1.useMarshalling:
                     line_no, action, payload = client.queue_incoming.get(0)
-                    #print("Message before unmarshalling: "+str(msg))
-                    # = backend.common.unmarshall(msg)
-                    #print("Line number: "+str(line_no))
-                    #print("Action: "+str(action))
-                    #print("Payload: "+str(payload))
-                    #print(self.get_page("ConnectPage").entryText.get())
-                    self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload))
-                    #print msg
+                    self.get_page("EditorPage").text.delete(str(line_no+1)+".0", str(line_no+2)+".0")
+                    self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload)+'\n')
+
+                    int(self.get_page("EditorPage").index('end-1c').split('.')[0])
+
                 else:
                     #msg = client.queue_incoming.get(0)
                     #print("Parast tekstifaili: " + str(msg))
@@ -437,16 +434,6 @@ class ThreadedClient(threading.Thread):
                         pass
                 time.sleep(0.2)
 
-    #def send_changes(self, line_no, action, payload=''):
-        '''Send changes in local file to the server
-        :param line_no: int, Line number to be changed (line numbers start from 0)
-        :param action:  int, Editing control code
-                             (valid values: common.EDIT_REPLACE, common.EDIT_INSERT, common.EDIT_DELETE)
-        :param payload: string, Value for the line (ignored if `action' is set to common.EDIT_DELETE)
-        :return: True, if the request was successfully sent
-                 False, otherwise
-        The file and client ID relevant to this request are defined in instance variables `self.id' and `self.fn'
-        '''
 
     def endApplication(self):
         self.running = 0
