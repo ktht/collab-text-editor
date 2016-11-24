@@ -67,6 +67,9 @@ class TextEdGUI(tk.Tk):
         self.status = tk.Label(container, text="Client ID: ", bd=1,
                           relief=tk.SUNKEN, anchor=tk.W)
         self.status.grid(row=3, column=0, sticky="sw")
+        self.status2 = tk.Label(container, text="Last edit done by ID: ", bd=1,
+                               relief=tk.SUNKEN, anchor=tk.W)
+        self.status2.grid(row=3, column=0, sticky="se")
 
 
     def show_frame(self, cont):
@@ -77,21 +80,18 @@ class TextEdGUI(tk.Tk):
         return self.frames[page_name]
 
     def processIncoming(self):
-        #self.get_page("EditorPage").updateQueue()
         while client.queue_incoming.qsize():
             self.get_page("EditorPage").unBindCallback()
             try:
                 if client1.useMarshalling:
                     line_no, action, payload, id_c = client.queue_incoming.get(0)
+                    self.status2.config(text='Last edit done by ID: ' + str(id_c))
                     if int(action) == backend.common.EDIT_REPLACE:
                         self.get_page("EditorPage").text.delete(str(line_no+1)+".0", str(line_no+2)+".0")
                         self.get_page("EditorPage").text.insert(str(line_no+1)+".0", str(payload)+'\n')
                     elif int(action) == backend.common.EDIT_INSERT:
-                        print("Line no: "+str(line_no))
-                        print("Action: " + str(action))
-                        print("Payload: " + str(payload))
-                        print("ID: " + str(id_c))
-                        #pass
+                        self.get_page("EditorPage").text.delete(str(line_no + 1) + ".0", str(line_no + 2) + ".0")
+                        self.get_page("EditorPage").text.insert(str(line_no + 1) + ".0", str(payload) + '\n')
 
                     elif int(action) == backend.common.EDIT_DELETE:
                         tekst = str(self.get_page("EditorPage").text.get(str(line_no+1)+".0", str(line_no+2)+".0")).rstrip()
@@ -237,7 +237,6 @@ class SelectorPage(tk.Frame):
         client1.e.clear()
 
 
-
 class EditorPage(tk.Frame):
 
     def __init__(self, parent, controller):
@@ -258,8 +257,6 @@ class EditorPage(tk.Frame):
         #                    command=lambda: controller.show_frame(SelectorPage))
         #button5.grid(column=0,row=1, sticky="sw", padx=5)
 
-
-
     def bindCallback(self):
         self.text.bind("<<TextModified>>", self.onModification)
 
@@ -270,6 +267,7 @@ class EditorPage(tk.Frame):
         pass
 
     def onModification(self, event):
+        #self.controller.config(text='Last edit done by Me!')
         global lineCount
         var = lineCount
         lineCount =  int(self.text.index('end-1c').split('.')[0])
@@ -282,15 +280,33 @@ class EditorPage(tk.Frame):
         else:
             self.rowChange = 2
 
-        print("RowChange: "+str(self.rowChange))
-
         try:
-            cv.acquire()
-            queue_send2srvr.put(str(str(rida - 1) + backend.common.DELIM + str(self.rowChange) + backend.common.DELIM
-                                    + self.text.get(str(rida) + ".0", str(rida + 1) + ".0").rstrip()))
-            if queue_send2srvr.qsize() == 1:
-                cv.notify_all()
-            cv.release()
+            if self.rowChange == 1:
+                for i in range(2):
+                    if i == 0:
+                        cv.acquire()
+                        queue_send2srvr.put(str(str(rida-2) + backend.common.DELIM + str(self.rowChange) + backend.common.DELIM
+                                                + self.text.get(str(rida-1) + ".0", str(rida) + ".0").rstrip())+'\n')
+                        if queue_send2srvr.qsize() == 1:
+                            cv.notify_all()
+                        cv.release()
+                    else:
+                        time.sleep(0.02)
+                        cv.acquire()
+                        queue_send2srvr.put(
+                            str(str(rida - 1) + backend.common.DELIM + str(self.rowChange) + backend.common.DELIM
+                                + self.text.get(str(rida) + ".0", str(rida + 1) + ".0").rstrip()))
+                        if queue_send2srvr.qsize() == 1:
+                            cv.notify_all()
+                        cv.release()
+            else:
+                cv.acquire()
+                queue_send2srvr.put(str(str(rida - 1) + backend.common.DELIM + str(self.rowChange) + backend.common.DELIM
+                                        + self.text.get(str(rida) + ".0", str(rida + 1) + ".0").rstrip()))
+                time.sleep(0.02)
+                if queue_send2srvr.qsize() == 1:
+                    cv.notify_all()
+                cv.release()
         except UnicodeEncodeError:
             print("Sisestatud char ei sobi (pole ascii koodis olemas)!")
 
@@ -416,7 +432,6 @@ class ThreadedClient(threading.Thread):
                 for i in client_files:
                     self.gui.get_page("SelectorPage").listBox.insert(tk.END, i)
 
-
             self.e.wait()
 
             if useListElem:
@@ -464,17 +479,4 @@ class ThreadedClient(threading.Thread):
 if __name__ == '__main__':
     client1 = ThreadedClient()
     client1.gui.mainloop()
-
-
-# GUI insert keskele
-# Cliendi ja GUI suhtlus yle Queue
-# Req file tests
-
-
-# Klient yritab yhenduda serveriga vaartuste abil, mis on kuvatud Connect Page lehel
-# Default ID loetakse sisse .tmp_collab/client olevast failist
-# Kui seal ID puudub, tuleb pop up, mis kysib ka olete uus kasutaja ning kas soovite luua uue ID?
-#
-
-
 
