@@ -54,13 +54,6 @@ def close_socket(sock):
   sock.close()
   logging.debug('Closed the socket')
 
-def read_chunks(fo, chunk_size = MAX_PDU_SZ):
-  while True:
-    data = fo.read(chunk_size)
-    if not data:
-      break
-    yield data
-
 def recv(sock, buf_sz = BUF_SZ):
   msg = ''
   try:

@@ -65,7 +65,7 @@ class client_manager_thread(threading.Thread):
     while len(self.parent_manager.clients) > 0:
       sockets = self.parent_manager.clients.keys()
       outputs = self.parent_manager.outputs.keys()
-      readable, writable, exceptional = select.select(sockets, outputs, sockets)
+      readable, writable, exceptional = select.select(sockets, outputs, sockets, 0.5)
 
       for r in readable:
         msg = common.recv(r)
@@ -104,6 +104,7 @@ class client_manager_thread(threading.Thread):
             logging.debug("Sending the changes to client #ID = '%d'" %
                           self.parent_manager.clients[w][client_manager.KEY_USERID])
             common.send(w, self.parent_manager.outputs[w].pop(0))
+          del self.parent_manager.outputs[w]
       for e in exceptional:
         logging.debug("Client #ID = '%d' dropped connection" %
                       self.parent_manager.clients[e][client_manager.KEY_USERID])

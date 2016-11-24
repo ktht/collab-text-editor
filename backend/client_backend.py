@@ -260,19 +260,21 @@ class client:
           break
       except socket.timeout as err:
         logging.debug('Socket timeout error: %s' % err)
-        continue
+        break
       except socket.error as err:
         logging.debug('Socket error: %s' % err)
-        continue
+        break
       except ValueError as err:
         logging.debug('Unmarshalling (?) error: %s' % err)
-        continue
+        break
       except RuntimeError as err:
         logging.debug('Runtime error: %s' % err)
-        continue
+        break
       except KeyboardInterrupt:
         logging.debug('Caught SIGINT')
-        return
+        break
       except BaseException as err:
         logging.debug('Unknown error: %s' % err)
-        continue
+        break
+
+    self.is_running = False
