@@ -79,8 +79,8 @@ class file_manager:
     '''
 
     # edits n-th line in place
-    logging.debug("Editing %d-th line in file '%s' with action '%d'" %
-                  (line_no, self.fn, action))
+    logging.debug("Editing %d-th line in file '%s' with action '%s'" %
+                  (line_no, self.fn, common.EDIT_STRINGS[action]))
     if line_no <= self.nof_lines:
       if action == common.EDIT_REPLACE:
         # replace an existing line or add a new line
