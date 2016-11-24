@@ -211,11 +211,9 @@ class SelectorPage(tk.Frame):
         self.listBox.grid(row=3, column=1, pady=10, padx=10)
 
         self.var = tk.IntVar()
-        checkBox = tk.Checkbutton(self, text="Private", variable=self.var, command=self.checkingBox)
+        checkBox = tk.Checkbutton(self, text="Private", variable=self.var)
         checkBox.grid(row = 1, column = 2)
 
-    def checkingBox(self):
-        print(self.var.get())
 
     def select_Listelem(self):
         try:
@@ -442,7 +440,12 @@ class ThreadedClient(threading.Thread):
             else:
                 fname = self.gui.get_page("SelectorPage").entryText4.get()
                 cl_ID = self.gui.get_page("SelectorPage").entryText5.get()
-                file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(fname), str(cl_ID)]))
+
+                if self.gui.get_page("SelectorPage").var.get():
+                    file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(fname), str(cl_ID)]), backend.common.FILEMODE_PRIVATE)
+                else:
+                    file_contents = c.req_file(backend.common.DELIM_ID_FILE.join([str(fname), str(cl_ID)]))
+
                 if file_contents == None:
                     popupmsg_close("This file does not exist, closing program.")
                 client.queue_incoming.put(file_contents)
